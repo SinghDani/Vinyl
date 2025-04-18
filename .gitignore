@@ -9,6 +9,8 @@ go.work.sum
 *.out
 *.test
 
+.env
+
 .DS_Store
 
 .idea/
