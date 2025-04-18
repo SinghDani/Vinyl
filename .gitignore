@@ -1,0 +1,17 @@
+bin/
+obj/
+
+go.work
+go.work.sum
+
+*.exe
+*.exe~
+*.out
+*.test
+
+.DS_Store
+
+.idea/
+
+*.coverprofile
+*.test
