@@ -1,5 +1,7 @@
 bin/
 obj/
+audioFiles/
+.ropeproject/
 
 go.work
 go.work.sum
@@ -9,11 +11,13 @@ go.work.sum
 *.out
 *.test
 
-.env
+*.mp3
+
+.env/
+.venv/
 
 .DS_Store
 
 .idea/
 
-*.coverprofile
 *.test
