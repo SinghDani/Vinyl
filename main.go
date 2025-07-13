@@ -20,7 +20,9 @@ func main() {
 	}
 
 	frequencies := fft(samples, len(samples))
-	//frequencies = dft(samples)
+	//frequencies := dft(samples)
+	//frequencies := make([]complex128, len(samples))
+	//fft2(samples, len(samples), frequencies, 0, 0, 1)
 
 	//frequenices
 	for i := 0; i < N; i++ {
@@ -59,29 +61,47 @@ func dft(samples []float64) []complex128 {
 }
 
 // TODO not power of two
-func fft(samples []float64, n int) []complex128 {
-	if n <= 1 {
+func fft(samples []float64, N int) []complex128 {
+	if N == 0 {
+		return []complex128{}
+	}
+	if N <= 1 {
 		return []complex128{complex(samples[0], 0)}
 	}
-	t1 := make([]float64, n/2)
-	t2 := make([]float64, n/2)
-	for i := 0; i < n/2; i++ {
+
+	t1 := make([]float64, N/2)
+	t2 := make([]float64, N/2)
+	for i := 0; i < N/2; i++ {
 		t1[i] = samples[2*i]
 		t2[i] = samples[2*i+1]
 	}
-	even := fft(t1, n/2)
-	odd := fft(t2, n/2)
+	even := fft(t1, N/2)
+	odd := fft(t2, N/2)
 
-	T := make([]complex128, n/2)
-	for k := 0; k < n/2; k++ {
-		T[k] = odd[k] * cmplx.Exp(complex(0, -2*PI*float64(k)/float64(n)))
-	}
-	res := make([]complex128, n)
-	for k := 0; k < n/2; k++ {
-		res[k] = even[k] + T[k]
-		res[k+n/2] = even[k] - T[k]
+	res := make([]complex128, N)
+	for k := 0; k < N/2; k++ {
+		T := odd[k] * cmplx.Exp(complex(0, -2*PI*float64(k)/float64(N)))
+		res[k] = even[k] + T
+		res[k+N/2] = even[k] - T
 	}
 	return res
+}
+
+func fft2(samples []float64, N int, frequencies []complex128, start, outIndex, stride int) {
+	if N <= 1 {
+		frequencies[outIndex] = complex(samples[start], 0)
+		return
+	}
+
+	fft2(samples, N/2, frequencies, start, outIndex, stride*2)
+	fft2(samples, N/2, frequencies, start+stride, outIndex+N/2, stride*2)
+
+	for k := 0; k < N/2; k++ {
+		T := frequencies[outIndex+N/2+k] * cmplx.Exp(complex(0, -2*PI*float64(k)/float64(N)))
+		even := frequencies[outIndex+k]
+		frequencies[outIndex+k] = even + T
+		frequencies[outIndex+N/2+k] = even - T
+	}
 }
 
 // 0 1 2 3 4 5 6 7
