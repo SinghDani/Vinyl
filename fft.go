@@ -1,6 +1,31 @@
 package main
 
-import "math/cmplx"
+import (
+	"math"
+	"math/cmplx"
+)
+
+const PI = math.Pi
+
+// start refers to where the pointer to the samples array currently is
+// stride refers to the distance between an even index and the odd index it's supposed to be combined with
+// outindex refers to the index where the current recursive call should start writing its output
+func fft(samples []float64, N int, frequencies []complex128, start, outIndex, stride int) {
+	if N <= 1 {
+		frequencies[outIndex] = complex(samples[start], 0)
+		return
+	}
+
+	fft(samples, N/2, frequencies, start, outIndex, stride*2)
+	fft(samples, N/2, frequencies, start+stride, outIndex+N/2, stride*2)
+
+	for k := 0; k < N/2; k++ {
+		T := frequencies[outIndex+N/2+k] * cmplx.Exp(complex(0, -2*PI*float64(k)/float64(N))) //odd frequency
+		even := frequencies[outIndex+k]                                                       //even frequency
+		frequencies[outIndex+k] = even + T                                                    //compute first half
+		frequencies[outIndex+N/2+k] = even - T                                                //compute second half
+	}
+}
 
 func dft(samples []float64) []complex128 {
 	N := len(samples)
@@ -16,8 +41,7 @@ func dft(samples []float64) []complex128 {
 	return frequencies
 }
 
-// TODO not power of two
-func fft(samples []float64, N int) []complex128 {
+func fft2(samples []float64, N int) []complex128 {
 	if N == 0 {
 		return []complex128{}
 	}
@@ -31,8 +55,8 @@ func fft(samples []float64, N int) []complex128 {
 		t1[i] = samples[2*i]
 		t2[i] = samples[2*i+1]
 	}
-	even := fft(t1, N/2)
-	odd := fft(t2, N/2)
+	even := fft2(t1, N/2)
+	odd := fft2(t2, N/2)
 
 	res := make([]complex128, N)
 	for k := 0; k < N/2; k++ {
@@ -41,24 +65,4 @@ func fft(samples []float64, N int) []complex128 {
 		res[k+N/2] = even[k] - T
 	}
 	return res
-}
-
-// start refers to where the pointer to the samples array currently is
-// stride refers to the distance between an even index and the odd index it's supposed to be combined with
-// outindex refers to the index where the current recursive call should start writing its output
-func fft2(samples []float64, N int, frequencies []complex128, start, outIndex, stride int) {
-	if N <= 1 {
-		frequencies[outIndex] = complex(samples[start], 0)
-		return
-	}
-
-	fft2(samples, N/2, frequencies, start, outIndex, stride*2)
-	fft2(samples, N/2, frequencies, start+stride, outIndex+N/2, stride*2)
-
-	for k := 0; k < N/2; k++ {
-		T := frequencies[outIndex+N/2+k] * cmplx.Exp(complex(0, -2*PI*float64(k)/float64(N))) //odd frequency
-		even := frequencies[outIndex+k]                                                       //even frequency
-		frequencies[outIndex+k] = even + T                                                    //compute first half
-		frequencies[outIndex+N/2+k] = even - T                                                //compute second half
-	}
 }
