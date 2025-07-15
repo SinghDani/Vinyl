@@ -43,6 +43,9 @@ func fft(samples []float64, N int) []complex128 {
 	return res
 }
 
+// start refers to where the pointer to the samples array currently is
+// stride refers to the distance between an even index and the odd index it's supposed to be combined with
+// outindex refers to the index where the current recursive call should start writing its output
 func fft2(samples []float64, N int, frequencies []complex128, start, outIndex, stride int) {
 	if N <= 1 {
 		frequencies[outIndex] = complex(samples[start], 0)
@@ -53,14 +56,9 @@ func fft2(samples []float64, N int, frequencies []complex128, start, outIndex, s
 	fft2(samples, N/2, frequencies, start+stride, outIndex+N/2, stride*2)
 
 	for k := 0; k < N/2; k++ {
-		T := frequencies[outIndex+N/2+k] * cmplx.Exp(complex(0, -2*PI*float64(k)/float64(N)))
-		even := frequencies[outIndex+k]
-		frequencies[outIndex+k] = even + T
-		frequencies[outIndex+N/2+k] = even - T
+		T := frequencies[outIndex+N/2+k] * cmplx.Exp(complex(0, -2*PI*float64(k)/float64(N))) //odd frequency
+		even := frequencies[outIndex+k]                                                       //even frequency
+		frequencies[outIndex+k] = even + T                                                    //compute first half
+		frequencies[outIndex+N/2+k] = even - T                                                //compute second half
 	}
 }
-
-// 0 1 2 3 4 5 6 7
-// 0 2 4 6 | 1 3 5 7
-// 0 4 | 2 6 | 1 5 | 3 7
-// 0 | 4 | 2 | 6 | 1 | 5 | 3 | 7
