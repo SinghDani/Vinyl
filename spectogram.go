@@ -27,6 +27,7 @@ func generateSpectogram(samples []float64) [][]complex128 {
 			end = N
 		}
 
+		//if last bit to short, it gets zero padded
 		curSamples := make([]float64, windowSize)
 		copy(curSamples, samples[start:end])
 
@@ -38,8 +39,8 @@ func generateSpectogram(samples []float64) [][]complex128 {
 		//inplace fft
 		fft(curSamples, windowSize, freqMatrix[i], 0, 0, 1)
 
-		//frequencies := fft2(curSamples, windowSize)
-		//frequencies := dft(curSamples)
+		//freqMatrix[i] = fft2(curSamples, windowSize)
+		//freqMatrix[i] = dft(curSamples)
 	}
 	return freqMatrix
 }

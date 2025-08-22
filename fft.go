@@ -11,7 +11,10 @@ const PI = math.Pi
 // stride refers to the distance between an even index and the odd index it's supposed to be combined with
 // outindex refers to the index where the current recursive call should start writing its output
 func fft(samples []float64, N int, frequencies []complex128, start, outIndex, stride int) {
-	if N <= 1 {
+	if N == 0 {
+		return
+	}
+	if N == 1 {
 		frequencies[outIndex] = complex(samples[start], 0)
 		return
 	}

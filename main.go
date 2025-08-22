@@ -6,7 +6,7 @@ import (
 	"math/cmplx"
 )
 
-const FrequencyRate = 10000
+const FrequencyRate = 44100
 
 func main() {
 	//signal generation
