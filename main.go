@@ -1,16 +1,14 @@
 package main
 
 import (
-	"fmt"
 	"math"
-	"math/cmplx"
 )
 
 const FrequencyRate = 44100
 
 func main() {
 	//signal generation
-	N := 1024
+	N := 5000
 	samples := make([]float64, N)
 	for i := 0; i < N; i++ {
 		t := float64(i) / FrequencyRate
@@ -19,11 +17,14 @@ func main() {
 		samples[i] = signal
 	}
 
-	frequencies := generateSpectogram(samples)[0]
+	frequencies := generateSpectogram(samples)
+	spectogramImage(frequencies)
 
 	//frequenices
-	for i := 0; i < N/2; i++ {
-		cur := frequencies[i]
-		fmt.Printf("%.16f   |  i:%d 	|| 	sin: %.16f 	|| 	cos: %.16f \n", cmplx.Abs(cur), i, imag(cur), real(cur))
-	}
+	/*
+		for i := 0; i < N; i++ {
+			cur := frequencies[i]
+			fmt.Printf("%.16f   |  i:%d 	|| 	sin: %.16f 	|| 	cos: %.16f \n", cmplx.Abs(cur), i, imag(cur), real(cur))
+		}
+	*/
 }

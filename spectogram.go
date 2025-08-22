@@ -42,5 +42,9 @@ func generateSpectogram(samples []float64) [][]complex128 {
 		//freqMatrix[i] = fft2(curSamples, windowSize)
 		//freqMatrix[i] = dft(curSamples)
 	}
+	//remove second half of frequncies since they are exact mirrors of first half
+	for i := 0; i < windowCount; i++ {
+		freqMatrix[i] = freqMatrix[i][:windowSize/2]
+	}
 	return freqMatrix
 }
