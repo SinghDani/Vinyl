@@ -11,7 +11,7 @@ import (
 )
 
 const windowSize = 1024
-const hopSize = 512
+const hopSize = 512 //how much to slide each window by
 
 func generateSpectogram(samples []float64) [][]complex128 {
 	N := len(samples)
@@ -33,8 +33,8 @@ func generateSpectogram(samples []float64) [][]complex128 {
 			end = N
 		}
 
-		//if last bit to short, it gets zero padded
 		curSamples := make([]float64, windowSize)
+		//if last window goes bejond the signals length N, it gets padded with zeros
 		copy(curSamples, samples[start:end])
 
 		//apply hamming window
@@ -49,7 +49,7 @@ func generateSpectogram(samples []float64) [][]complex128 {
 		//freqMatrix[i] = dft(curSamples)
 	}
 
-	//remove second half of frequncies since they are exact mirrors of first half
+	//remove second half of frequncies since they are exact mirrors of the first half
 	for i := 0; i < windowCount; i++ {
 		freqMatrix[i] = freqMatrix[i][:windowSize/2]
 	}
@@ -68,7 +68,7 @@ func spectogramImage(freqMatrix [][]complex128) {
 
 	img := image.NewGray(image.Rect(0, 0, width, height))
 
-	//find the max magnitude for normalisation
+	//find the max magnitude which will be used for normalisation
 	maxMagnitude := 0.0
 	for i := 0; i < width; i++ {
 		for j := 0; j < height; j++ {
