@@ -3,6 +3,8 @@ obj/
 audioFiles/
 .ropeproject/
 
+*.png
+
 go.work
 go.work.sum
 
