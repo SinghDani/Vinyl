@@ -12,7 +12,7 @@ func main() {
 	samples := make([]float64, N)
 	for i := 0; i < N; i++ {
 		t := float64(i) / FrequencyRate
-		signal := math.Cos(2*PI*426*t) + math.Cos(2*PI*200.5*t) + math.Sin(2*PI*100.20*t) + math.Sin(2*PI*10.56*t) + math.Sin(2*PI*400*t)
+		signal := math.Cos(2*PI*426*t) + math.Cos(2*PI*200.5*t) + math.Sin(2*PI*100.20*t) + math.Sin(2*PI*20000*t) + math.Sin(2*PI*400*t)
 		//signal := math.Cos(2*PI*400*t) + math.Cos(2*PI*200*t) + math.Sin(2*PI*100*t) + math.Sin(2*PI*10*t) + math.Sin(2*PI*400*t)
 		samples[i] = signal
 	}
