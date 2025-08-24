@@ -15,3 +15,9 @@ type WavHeader struct {
 	BlockAlign    uint16
 	BitsPerSample uint16
 }
+
+type IncorrectWavFormat struct{}
+
+func (I *IncorrectWavFormat) Error() string {
+	return "Incorrect wav format"
+}
