@@ -1,10 +1,10 @@
 package main
 
 import (
+	"errors"
 	"image"
 	"image/color"
 	"image/png"
-	"log"
 	"math"
 	"math/cmplx"
 	"os"
@@ -44,9 +44,6 @@ func generateSpectogram(samples []float64) [][]complex128 {
 
 		//inplace fft
 		fft(curSamples, windowSize, freqMatrix[i], 0, 0, 1)
-
-		//freqMatrix[i] = fft2(curSamples, windowSize)
-		//freqMatrix[i] = dft(curSamples)
 	}
 
 	//remove second half of frequncies since they are exact mirrors of the first half
@@ -54,16 +51,17 @@ func generateSpectogram(samples []float64) [][]complex128 {
 		freqMatrix[i] = freqMatrix[i][:windowSize/2]
 	}
 	return freqMatrix
+
 }
 
-func spectogramImage(freqMatrix [][]complex128) {
+func spectogramImage(freqMatrix [][]complex128) error {
 	width := len(freqMatrix)
 	if width == 0 {
-		return
+		return errors.New("no frames available")
 	}
 	height := len(freqMatrix[0])
 	if height == 0 {
-		return
+		return errors.New("no frequencies available")
 	}
 
 	img := image.NewGray(image.Rect(0, 0, width, height))
@@ -90,9 +88,10 @@ func spectogramImage(freqMatrix [][]complex128) {
 
 	f, err := os.Create("spectogram-image.png")
 	if err != nil {
-		log.Fatal(err)
+		return err
 	}
 	defer f.Close()
 
 	png.Encode(f, img)
+	return nil
 }
