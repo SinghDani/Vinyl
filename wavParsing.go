@@ -27,6 +27,28 @@ func (I IncorrectWavFormat) Error() string {
 	return "Incorrect Wav Format"
 }
 
+func ParseWav(path string) error {
+	/*
+		data, err := os.ReadFile(path)
+		if err != nil {
+			return err
+		}
+	*/
+	samples := []byte{0x52, 0x49, 0x46, 0x46, 0x24, 0x08, 0x00, 0x00, 0x57, 0x41,
+		0x56, 0x45, 0x66, 0x6d, 0x74, 0x20, 0x10, 0x00, 0x00, 0x00,
+		0x01, 0x00, 0x02, 0x00, 0x22, 0x56, 0x00, 0x00, 0x88, 0x58,
+		0x01, 0x00, 0x04, 0x00, 0x10, 0x00, 0x64, 0x61, 0x74, 0x61,
+		0x00, 0x08, 0x00, 0x00}
+
+	header, err := ExtractWavHeader(samples)
+	if err != nil {
+		return err
+	}
+	fmt.Printf("%+v", header)
+
+	return nil
+}
+
 func ExtractWavHeader(headerData []byte) (*WavHeader, error) {
 	if len(headerData) != 44 {
 		return nil, IncorrectWavFormat{}
@@ -60,6 +82,5 @@ func ExtractWavHeader(headerData []byte) (*WavHeader, error) {
 	}
 	header.Subchunk2Size = binary.LittleEndian.Uint32(headerData[40:44])
 
-	fmt.Printf("%+v", header)
 	return header, nil
 }
