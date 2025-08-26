@@ -83,8 +83,10 @@ func ExtractWavHeader(headerData []byte) (*WavHeader, error) {
 	header.BlockAlign = binary.LittleEndian.Uint16(headerData[offset+20 : offset+22])
 	header.BitsPerSample = binary.LittleEndian.Uint16(headerData[offset+22 : offset+24])
 
+	offset += 8 + int(header.Subchunk1Size)
+
 	//skip List chunk
-	offset, err = skipChunks(headerData, offset+24, "data")
+	offset, err = skipChunks(headerData, offset, "data")
 	if err != nil {
 		return nil, err
 	}
