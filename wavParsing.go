@@ -3,7 +3,6 @@ package main
 import (
 	"encoding/binary"
 	"fmt"
-	"os"
 )
 
 type WavHeader struct {
@@ -29,20 +28,20 @@ func (I IncorrectWavFormat) Error() string {
 }
 
 func ParseWav(path string) error {
-	data, err := os.ReadFile(path)
-	if err != nil {
-		return err
-	}
 	/*
-		samples := []byte{0x52, 0x49, 0x46, 0x46, 0x24, 0x08, 0x00, 0x00, 0x57, 0x41,
-			0x56, 0x45, 0x66, 0x6d, 0x74, 0x20, 0x10, 0x00, 0x00, 0x00,
-			0x01, 0x00, 0x02, 0x00, 0x22, 0x56, 0x00, 0x00, 0x88, 0x58,
-			0x01, 0x00, 0x04, 0x00, 0x10, 0x00, 0x64, 0x61, 0x74, 0x61,
-			0x00, 0x08, 0x00, 0x00}
+		samples, err := os.ReadFile(path)
+		if err != nil {
+			return err
+		}
 	*/
+	samples := []byte{0x52, 0x49, 0x46, 0x46, 0x24, 0x08, 0x00, 0x00, 0x57, 0x41,
+		0x56, 0x45, 0x66, 0x6d, 0x74, 0x20, 0x10, 0x00, 0x00, 0x00,
+		0x01, 0x00, 0x02, 0x00, 0x22, 0x56, 0x00, 0x00, 0x88, 0x58,
+		0x01, 0x00, 0x04, 0x00, 0x10, 0x00, 0x64, 0x61, 0x74, 0x61,
+		0x00, 0x08, 0x00, 0x00}
 
 	//header, err := ExtractWavHeader(data)
-	header, err := ExtractWavHeader(data)
+	header, err := ExtractWavHeader(samples)
 
 	if err != nil {
 		return err
@@ -68,37 +67,45 @@ func ExtractWavHeader(headerData []byte) (*WavHeader, error) {
 	if header.Format != "WAVE" {
 		return nil, IncorrectWavFormat{}
 	}
-	header.Subchunk1ID = string(headerData[12:16])
-	if header.Subchunk1ID != "fmt " {
-		return nil, IncorrectWavFormat{}
+
+	offset, err := skipChunks(headerData, 12, "fmt ")
+	if err != nil {
+		return nil, err
 	}
-	header.Subchunk1Size = binary.LittleEndian.Uint32(headerData[16:20])
-	header.AudioFormat = binary.LittleEndian.Uint16(headerData[20:22])
-	header.NumChannels = binary.LittleEndian.Uint16(headerData[22:24])
-	header.SampleRate = binary.LittleEndian.Uint32(headerData[24:28])
-	header.ByteRate = binary.LittleEndian.Uint32(headerData[28:32])
-	header.BlockAlign = binary.LittleEndian.Uint16(headerData[32:34])
-	header.BitsPerSample = binary.LittleEndian.Uint16(headerData[34:36])
+
+	header.Subchunk1ID = string(headerData[offset : offset+4])
+	header.Subchunk1Size = binary.LittleEndian.Uint32(headerData[offset+4 : offset+8])
+	header.AudioFormat = binary.LittleEndian.Uint16(headerData[offset+8 : offset+10])
+	header.NumChannels = binary.LittleEndian.Uint16(headerData[offset+10 : offset+12])
+	header.SampleRate = binary.LittleEndian.Uint32(headerData[offset+12 : offset+16])
+	header.ByteRate = binary.LittleEndian.Uint32(headerData[offset+16 : offset+20])
+	header.BlockAlign = binary.LittleEndian.Uint16(headerData[offset+20 : offset+22])
+	header.BitsPerSample = binary.LittleEndian.Uint16(headerData[offset+22 : offset+24])
 
 	//skip List chunk
-	start := 36
-	var entry string
-	for {
-		if start+8 >= len(headerData) {
-			return nil, IncorrectWavFormat{}
-		}
-
-		entry = string(headerData[start : start+4])
-		chunkLength := binary.LittleEndian.Uint32(headerData[start+4 : start+8])
-
-		if entry == "data" {
-			header.Subchunk2ID = entry
-			header.Subchunk2Size = chunkLength
-			break
-		}
-
-		start += 8 + int(chunkLength)
+	offset, err = skipChunks(headerData, offset+24, "data")
+	if err != nil {
+		return nil, err
 	}
-	fmt.Println(entry)
+	header.Subchunk2ID = string(headerData[offset : offset+4])
+	header.Subchunk2Size = binary.LittleEndian.Uint32(headerData[offset+4 : offset+8])
+
 	return header, nil
+}
+
+func skipChunks(headerData []byte, offset int, target string) (int, error) {
+	length := len(headerData)
+	for {
+		if offset+8 > length {
+			return -1, IncorrectWavFormat{}
+		}
+
+		entry := string(headerData[offset : offset+4])
+		if entry == target {
+			return offset, nil
+		}
+
+		chunkLength := binary.LittleEndian.Uint32(headerData[offset+4 : offset+8])
+		offset += 8 + int(chunkLength)
+	}
 }
