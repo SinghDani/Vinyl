@@ -25,7 +25,7 @@ type WavHeader struct {
 
 type WAV struct {
 	header  *WavHeader
-	samples []float32
+	samples []float64
 }
 
 type IncorrectWavFormat struct{ message string }
@@ -65,32 +65,32 @@ func ParseWav(path string) (*WAV, error) {
 	return &WAV{header, samples}, nil
 }
 
-func stereoToMono(samples []float32) ([]float32, error) {
+func stereoToMono(samples []float64) ([]float64, error) {
 	length := len(samples)
 	if length%2 != 0 {
 		return nil, IncorrectWavFormat{"odd sample size"}
 	}
-	res := make([]float32, length/2)
+	res := make([]float64, length/2)
 	for i := 0; i < length; i += 2 {
 		res[i/2] = (samples[i] + samples[i+1]) / 2
 	}
 	return res, nil
 }
 
-func getWavData(rawData []byte) ([]float32, error) {
+func getWavData(rawData []byte) ([]float64, error) {
 	length := len(rawData)
 	if length%2 != 0 {
 		return nil, IncorrectWavFormat{"odd sample size"}
 	}
 
-	samples := make([]float32, length/2)
+	samples := make([]float64, length/2)
 	for i := 0; i < length; i += 2 {
 		//only wav files with 16bit samples will be processed
 		bits := int16(binary.LittleEndian.Uint16(rawData[i : i+2]))
 
 		//divding by 2^15 = 32768 (because of int16) to
 		//normalise the data from int to float between [-1, 1]
-		samples[i/2] = float32(bits) / 32768
+		samples[i/2] = float64(bits) / 32768
 	}
 	return samples, nil
 }
