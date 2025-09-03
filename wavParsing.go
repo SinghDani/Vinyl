@@ -23,10 +23,10 @@ type WavHeader struct {
 	DataOffset    uint32
 }
 
-type IncorrectWavFormat struct{}
+type IncorrectWavFormat struct{ message string }
 
 func (I IncorrectWavFormat) Error() string {
-	return "Incorrect Wav Format"
+	return "Incorrect Wav Format: " + I.message
 }
 
 func ParseWav(path string) error {
@@ -58,7 +58,7 @@ func ParseWav(path string) error {
 func getWavData(rawData []byte) ([]float32, error) {
 	length := len(rawData)
 	if length%2 != 0 {
-		return nil, IncorrectWavFormat{}
+		return nil, IncorrectWavFormat{"odd sample size"}
 	}
 
 	samples := make([]float32, length/2)
@@ -77,22 +77,22 @@ func getWavData(rawData []byte) ([]float32, error) {
 
 func extractWavHeader(headerData []byte) (*WavHeader, error) {
 	if len(headerData) < 44 {
-		return nil, IncorrectWavFormat{}
+		return nil, IncorrectWavFormat{"header lenght < 44"}
 	}
 
 	header := &WavHeader{}
 
 	header.ChunkID = string(headerData[:4])
 	if header.ChunkID != "RIFF" {
-		return nil, IncorrectWavFormat{}
+		return nil, IncorrectWavFormat{"RIFF not contained"}
 	}
 	header.ChunkSize = binary.LittleEndian.Uint32(headerData[4:8])
 	if int(header.ChunkSize+8) > len(headerData) {
-		return nil, IncorrectWavFormat{}
+		return nil, IncorrectWavFormat{"Chunksize exceeds length of WAV file"}
 	}
 	header.Format = string(headerData[8:12])
 	if header.Format != "WAVE" {
-		return nil, IncorrectWavFormat{}
+		return nil, IncorrectWavFormat{"WAVE not included"}
 	}
 
 	//skip optional chunks that might be added before the fmt chunk
@@ -104,7 +104,7 @@ func extractWavHeader(headerData []byte) (*WavHeader, error) {
 	header.Subchunk1ID = string(headerData[offset : offset+4])
 	header.Subchunk1Size = binary.LittleEndian.Uint32(headerData[offset+4 : offset+8])
 	if header.Subchunk1Size < 16 {
-		return nil, IncorrectWavFormat{}
+		return nil, IncorrectWavFormat{"Subchunk1Size < 16"}
 	}
 	header.AudioFormat = binary.LittleEndian.Uint16(headerData[offset+8 : offset+10])
 	header.NumChannels = binary.LittleEndian.Uint16(headerData[offset+10 : offset+12])
@@ -126,7 +126,7 @@ func extractWavHeader(headerData []byte) (*WavHeader, error) {
 	//signify start of data
 	header.DataOffset = uint32(offset) + 8
 	if int(header.DataOffset)+int(header.Subchunk2Size) > len(headerData) {
-		return nil, IncorrectWavFormat{}
+		return nil, IncorrectWavFormat{"Subchunk2Size exceeds length of WAV file"}
 	}
 
 	return header, nil
@@ -136,7 +136,7 @@ func skipChunks(headerData []byte, offset int, target string) (int, error) {
 	length := len(headerData)
 	for {
 		if offset+8 > length {
-			return -1, IncorrectWavFormat{}
+			return -1, IncorrectWavFormat{"An optional chunk exceeds the WAV file length"}
 		}
 
 		entry := string(headerData[offset : offset+4])
