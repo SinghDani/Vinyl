@@ -52,7 +52,23 @@ func ParseWav(path string) error {
 
 	getWavData(data[header.DataOffset:])
 
+	samples := []float32{2, 4, 6, 8, 10, 12, 3, 5, 8, 3, 9, 11}
+	samples, _ = stereoToMono(samples)
+	fmt.Println(samples)
+
 	return nil
+}
+
+func stereoToMono(samples []float32) ([]float32, error) {
+	length := len(samples)
+	if length%2 != 0 {
+		return nil, IncorrectWavFormat{"odd sample size"}
+	}
+	res := make([]float32, length/2)
+	for i := 0; i < length; i += 2 {
+		res[i/2] = (samples[i] + samples[i+1]) / 2
+	}
+	return res, nil
 }
 
 func getWavData(rawData []byte) ([]float32, error) {
@@ -62,15 +78,14 @@ func getWavData(rawData []byte) ([]float32, error) {
 	}
 
 	samples := make([]float32, length/2)
-
-	cur := 0
 	for i := 0; i < length; i += 2 {
+		//only wav files with 16bit samples will be processed
 		bits := int16(binary.LittleEndian.Uint16(rawData[i : i+2]))
+
 		//divding by 2^15 = 32768 (because of int16) to
 		//normalise the data from int to float between [-1, 1]
-		samples[cur] = float32(bits) / 32768
-		fmt.Println(bits, "	|	", samples[cur])
-		cur++
+		samples[i/2] = float32(bits) / 32768
+		fmt.Println(bits, "	|	", samples[i/2])
 	}
 	return samples, nil
 }
