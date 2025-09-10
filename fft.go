@@ -7,8 +7,8 @@ import (
 
 const PI = math.Pi
 
-// start refers to where the pointer to the samples array currently is
-// stride refers to the distance between an even index and the odd index it's supposed to be combined with
+// start refers to where the pointer to the samples array currently is,
+// stride refers to the distance between an even index and the odd index it's supposed to be combined with,
 // outindex refers to the index where the current recursive call should start writing its output
 func fft(samples []float64, N int, frequencies []complex128, start, outIndex, stride int) {
 	if N == 0 {
