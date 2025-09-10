@@ -51,7 +51,6 @@ func generateSpectogram(samples []float64) [][]complex128 {
 		freqMatrix[i] = freqMatrix[i][:windowSize/2]
 	}
 	return freqMatrix
-
 }
 
 func spectogramImage(freqMatrix [][]complex128) error {
@@ -81,7 +80,8 @@ func spectogramImage(freqMatrix [][]complex128) error {
 	for x := 0; x < width; x++ {
 		for y := 0; y < height; y++ {
 			mag := cmplx.Abs(freqMatrix[x][y])
-			value := (mag / maxMagnitude) * 255
+			//log based scaling so that higher frequencies are visible in the image
+			value := math.Log10(1+mag) / math.Log10(1+maxMagnitude) * 255
 			img.SetGray(x, height-1-y, color.Gray{uint8(value)})
 		}
 	}
@@ -92,6 +92,5 @@ func spectogramImage(freqMatrix [][]complex128) error {
 	}
 	defer f.Close()
 
-	png.Encode(f, img)
-	return nil
+	return png.Encode(f, img)
 }
