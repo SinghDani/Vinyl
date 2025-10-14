@@ -2,6 +2,7 @@ package main
 
 import "fmt"
 
+// low passfilter will cur frequencies above 5khz
 func lowpass(samples []float64, sampleRate int, cutoff int) []float64 {
 	dt := 1.0 / float64(sampleRate)
 	RC := 1.0 / (2 * PI * float64(cutoff))
