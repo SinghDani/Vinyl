@@ -50,7 +50,6 @@ func ParseWav(path string) (*WAV, error) {
 			0x34, 0xe7, 0x23, 0xa6, 0x3c, 0xf2, 0x24, 0xf2, 0x11, 0xce,
 			0x00, 0x80}
 	*/
-
 	header, err := extractWavHeader(data)
 	if err != nil {
 		return nil, err
@@ -148,7 +147,6 @@ func extractWavHeader(headerData []byte) (*WavHeader, error) {
 	if int(header.DataOffset)+int(header.Subchunk2Size) > len(headerData) {
 		return nil, IncorrectWavFormat{"Subchunk2Size exceeds length of WAV file"}
 	}
-
 	return header, nil
 }
 
