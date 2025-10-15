@@ -9,16 +9,20 @@ import (
 const FrequencyRate = 44100
 
 func main() {
-	/*
-		//signal generation
-		N := 5000
-		samples := make([]float64, N)
-		for i := 0; i < N; i++ {
-			t := float64(i) / FrequencyRate
-			signal := math.Cos(2*PI*426*t) + math.Cos(2*PI*200.5*t) + math.Sin(2*PI*100.20*t) + math.Sin(2*PI*20000*t) + math.Sin(2*PI*400*t)
-			//signal := math.Cos(2*PI*400*t) + math.Cos(2*PI*200*t) + math.Sin(2*PI*100*t) + math.Sin(2*PI*10*t) + math.Sin(2*PI*400*t)
-			samples[i] = signal
-		}
+			//signal generation
+			N := 20000
+			samples := make([]float64, N)
+			for i := 0; i < N; i++ {
+				t := float64(i) / FrequencyRate
+				//signal := math.Cos(2*PI*426*t) + math.Cos(2*PI*200.5*t) + math.Sin(2*PI*100.20*t) + math.Sin(2*PI*20000*t) + math.Sin(2*PI*400*t)
+				//signal := math.Cos(2*PI*400*t) + math.Cos(2*PI*200*t) + math.Sin(2*PI*100*t) + math.Sin(2*PI*10*t) + math.Sin(2*PI*400*t)
+				signal := math.Sin(2*PI*20*t) + math.Sin(2*PI*256*t) + math.Sin(2*PI*50*t)
+				samples[i] = signal
+			}
+
+		samples = lowpass(samples, FrequencyRate, 50)
+		frequencies := generateSpectogram(samples)[0]
+		//frequencies := generateSpectogram(samples)
 
 		frequencies := generateSpectogram(samples)
 		err := spectogramImage(frequencies)
