@@ -10,7 +10,7 @@ import (
 	"os"
 )
 
-const windowSize = 4096
+const windowSize = 1024
 const hopSize = windowSize / 2 //how much to slide each window by
 
 func generateSpectogram(samples []float64) [][]complex128 {
@@ -54,6 +54,9 @@ func generateSpectogram(samples []float64) [][]complex128 {
 }
 
 func spectogramImage(freqMatrix [][]complex128) error {
+	//width and height naming is swapped in comparison to what is usual matrix naming convention
+	//since the inner slice is going to hold the frequency range which is the y-axis in a spectogram
+	//while the outer slice will determine time on the the x-axis
 	width := len(freqMatrix)
 	if width == 0 {
 		return errors.New("no frames available")
@@ -80,9 +83,9 @@ func spectogramImage(freqMatrix [][]complex128) error {
 	for x := 0; x < width; x++ {
 		for y := 0; y < height; y++ {
 			mag := cmplx.Abs(freqMatrix[x][y])
+			//value := 255 * mag / maxMagnitude
 			//log based scaling so that higher frequencies are visible in the image
-			value := 255 * mag / maxMagnitude
-			//value := math.Log10(1+mag) / math.Log10(1+maxMagnitude) * 255
+			value := math.Log10(1+mag) / math.Log10(1+maxMagnitude) * 255
 			img.SetGray(x, height-1-y, color.Gray{uint8(value)})
 		}
 	}
