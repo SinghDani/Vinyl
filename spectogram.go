@@ -13,19 +13,18 @@ import (
 const windowSize = 1024
 const hopSize = windowSize / 2 //how much to slide each window by
 
-func generateSpectogram(samples []float64) [][]complex128 {
+func generateSpectogram(samples []float64) [][]float64 {
 	N := len(samples)
 	if N == 0 {
-		return [][]complex128{}
+		return [][]float64{}
 	}
 
 	windowCount := int(math.Ceil(float64(N-windowSize)/hopSize)) + 1
 
-	freqMatrix := make([][]complex128, windowCount)
+	freqMatrix := make([][]float64, windowCount)
 
 	//process the signal using overlapping windows
 	for i := 0; i < windowCount; i++ {
-		freqMatrix[i] = make([]complex128, windowSize)
 		start := i * hopSize
 		end := start + windowSize
 
@@ -34,7 +33,7 @@ func generateSpectogram(samples []float64) [][]complex128 {
 		}
 
 		curSamples := make([]float64, windowSize)
-		//if last window goes bejond the signals length N, it gets padded with zeros
+		//if last window goes beyond the signals length N, it gets padded with zeros
 		copy(curSamples, samples[start:end])
 
 		//apply hamming window
@@ -43,17 +42,21 @@ func generateSpectogram(samples []float64) [][]complex128 {
 		}
 
 		//inplace fft
-		fft(curSamples, windowSize, freqMatrix[i], 0, 0, 1)
+		fftResult := make([]complex128, windowSize)
+		fft(curSamples, windowSize, fftResult, 0, 0, 1)
+
+		//remove second half of frequencies since they are exact mirrors of the first half
+		freqMatrix[i] = make([]float64, windowSize/2)
+		for j := 0; j < windowSize/2; j++ {
+			//convert the complex values to the float64 magnitudes of the frequencies
+			freqMatrix[i][j] = cmplx.Abs(fftResult[j])
+		}
 	}
 
-	//remove second half of frequncies since they are exact mirrors of the first half
-	for i := 0; i < windowCount; i++ {
-		freqMatrix[i] = freqMatrix[i][:windowSize/2]
-	}
 	return freqMatrix
 }
 
-func spectogramImage(freqMatrix [][]complex128) error {
+func spectogramImage(freqMatrix [][]float64) error {
 	//width and height naming is swapped in comparison to what is usual matrix naming convention
 	//since the inner slice is going to hold the frequency range which is the y-axis in a spectogram
 	//while the outer slice will determine time on the the x-axis
@@ -72,7 +75,7 @@ func spectogramImage(freqMatrix [][]complex128) error {
 	maxMagnitude := 0.0
 	for i := 0; i < width; i++ {
 		for j := 0; j < height; j++ {
-			mag := cmplx.Abs(freqMatrix[i][j])
+			mag := freqMatrix[i][j]
 			if mag > maxMagnitude {
 				maxMagnitude = mag
 			}
@@ -82,7 +85,7 @@ func spectogramImage(freqMatrix [][]complex128) error {
 	//lower frequencies are written to the bottom, higher ones to the top
 	for x := 0; x < width; x++ {
 		for y := 0; y < height; y++ {
-			mag := cmplx.Abs(freqMatrix[x][y])
+			mag := freqMatrix[x][y]
 			//value := 255 * mag / maxMagnitude
 			//log based scaling so that higher frequencies are visible in the image
 			value := math.Log10(1+mag) / math.Log10(1+maxMagnitude) * 255
