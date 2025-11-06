@@ -1,7 +1,11 @@
 package main
 
-import "fmt"
+import (
+	"log"
+)
 
+// will decrease the sample rate by factor
+// in this case factor 4 to go from 44.1khz -> 11.025 hz
 func downsample(samples []float64, factor int) []float64 {
 	N := len(samples) / factor
 	output := make([]float64, N)
@@ -13,6 +17,7 @@ func downsample(samples []float64, factor int) []float64 {
 		}
 		output[i] = sum / float64(factor)
 	}
+
 	return output
 }
 
@@ -22,7 +27,6 @@ func lowpass(samples []float64, sampleRate int, cutoff int) []float64 {
 	dt := 1.0 / float64(sampleRate)
 	RC := 1.0 / (2 * PI * float64(cutoff))
 	alpha := dt / (RC + dt)
-	fmt.Printf("\n\nalpha: %v \n\n", alpha)
 	output := make([]float64, len(samples))
 
 	output[0] = alpha * samples[0]
@@ -30,4 +34,29 @@ func lowpass(samples []float64, sampleRate int, cutoff int) []float64 {
 		output[i] = alpha*samples[i] + (1-alpha)*output[i-1]
 	}
 	return output
+}
+
+func max2dFilter(samples [][]int, xDim, yDim int) [][]int {
+	if xDim%2 == 0 || yDim%2 == 0 {
+		log.Fatal("xDim and YDim have to be uneven")
+	}
+
+	xDim = xDim / 2
+	yDim = yDim / 2
+	width := len(samples)
+	height := len(samples[0])
+	result := make([][]int, height)
+	for i := 0; i < height; i++ {
+		result[i] = make([]int, width)
+		for j := 0; j < width; j++ {
+			cur := samples[i][j]
+			for k := max(0, i-yDim); k < min(width, i+yDim+1); k++ {
+				for l := max(0, j-xDim); l < min(height, j+xDim+1); l++ {
+					cur = max(cur, samples[k][l])
+				}
+			}
+			result[i][j] = cur
+		}
+	}
+	return result
 }
