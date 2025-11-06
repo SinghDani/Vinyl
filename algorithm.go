@@ -41,13 +41,13 @@ func max2dFilter(samples [][]int, xDim, yDim int) [][]int {
 		log.Fatal("xDim and YDim have to be uneven")
 	}
 
-	xDim = xDim / 2
-	yDim = yDim / 2
+	xDim = xDim / 2 //center the grid in the x-dimension
+	yDim = yDim / 2 //center the grid in the y-dimension
 	width := len(samples)
 	height := len(samples[0])
-	result := make([][]int, height)
+	output := make([][]int, height)
 	for i := 0; i < height; i++ {
-		result[i] = make([]int, width)
+		output[i] = make([]int, width)
 		for j := 0; j < width; j++ {
 			cur := samples[i][j]
 			for k := max(0, i-yDim); k < min(width, i+yDim+1); k++ {
@@ -55,8 +55,16 @@ func max2dFilter(samples [][]int, xDim, yDim int) [][]int {
 					cur = max(cur, samples[k][l])
 				}
 			}
-			result[i][j] = cur
+			output[i][j] = cur
 		}
 	}
-	return result
+
+	for i := 0; i < height; i++ {
+		for j := 0; j < width; j++ {
+			if samples[i][j] != output[i][j] {
+				samples[i][j] = 0
+			}
+		}
+	}
+	return output
 }
