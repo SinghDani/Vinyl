@@ -45,37 +45,41 @@ func extractPeaks(frequencyMatrix [][]float64, xDim, yDim int) [][]bool {
 	if xDim == 0 || yDim == 0 {
 		log.Fatal("xDim and yDim have to be odd to center grid around point")
 	}
+
 	xDim /= 2
 	yDim /= 2
 	numWindows := len(frequencyMatrix)
 	numFrequencyBins := len(frequencyMatrix[0])
-	filtered := make([][]float64, numWindows)
-
-	for i := 0; i < numWindows; i++ {
-		filtered[i] = make([]float64, numFrequencyBins)
-
-		for j := 0; j < numFrequencyBins; j++ {
-			val := frequencyMatrix[i][j]
-			for k := max(0, i-yDim); k < min(numWindows, i+yDim+1); k++ {
-				for l := max(0, j-xDim); l < min(numFrequencyBins, j+xDim+1); l++ {
-					val = max(val, frequencyMatrix[k][l])
-				}
-			}
-			filtered[i][j] = val
-		}
-	}
-	//printArray(filtered)
-
 	peaks := make([][]bool, numWindows)
+
 	for i := 0; i < numWindows; i++ {
 		peaks[i] = make([]bool, numFrequencyBins)
 		for j := 0; j < numFrequencyBins; j++ {
-			//!=0 check since zero padding causes all of the last points to be set to peaks
-			if frequencyMatrix[i][j] == filtered[i][j] && frequencyMatrix[i][j] != 0 {
+			isPeak := true
+			curMagnitude := frequencyMatrix[i][j]
+			//if statement needed since the last windows is zero padded (see generateSpectogram function)
+			// which will cause all the points in that region to be set to true
+			if curMagnitude == 0 {
+				isPeak = false
+				break
+			}
+			for k := max(0, i-yDim); k < min(numWindows, i+yDim+1); k++ {
+				for l := max(0, j-xDim); l < min(numFrequencyBins, j+xDim+1); l++ {
+					if curMagnitude < frequencyMatrix[k][l] {
+						isPeak = false
+						break
+					}
+				}
+				if !isPeak {
+					break
+				}
+			}
+			if isPeak {
 				peaks[i][j] = true
 			}
 		}
 	}
+	//printArray(filtered)
 	//printArray(peaks)
 	return peaks
 }
