@@ -1,7 +1,12 @@
 package main
 
 import (
+	"errors"
+	"image"
+	"image/color"
+	"image/png"
 	"log"
+	"os"
 )
 
 // will decrease the sample rate by factor
@@ -36,35 +41,55 @@ func lowpass(samples []float64, sampleRate int, cutoff int) []float64 {
 	return output
 }
 
-func max2dFilter(samples [][]int, xDim, yDim int) [][]int {
-	if xDim%2 == 0 || yDim%2 == 0 {
-		log.Fatal("xDim and YDim have to be uneven")
+func extractPeaks(frequencyMatrix [][]float64, xDim, yDim int) {
+	if xDim == 0 || yDim == 0 {
+		log.Fatal("xDim and yDim have to be odd to center grid around point")
 	}
+	xDim /= 2
+	yDim /= 2
+	numWindows := len(frequencyMatrix)
+	numFrequencyBins := len(frequencyMatrix[0])
+	filtered := make([][]float64, numWindows)
 
-	xDim = xDim / 2 //center the grid in the x-dimension
-	yDim = yDim / 2 //center the grid in the y-dimension
-	width := len(samples)
-	height := len(samples[0])
-	output := make([][]int, height)
-	for i := 0; i < height; i++ {
-		output[i] = make([]int, width)
-		for j := 0; j < width; j++ {
-			cur := samples[i][j]
-			for k := max(0, i-yDim); k < min(width, i+yDim+1); k++ {
-				for l := max(0, j-xDim); l < min(height, j+xDim+1); l++ {
-					cur = max(cur, samples[k][l])
+	for i := 0; i < numWindows; i++ {
+		filtered[i] = make([]float64, numFrequencyBins)
+		for j := 0; j < numFrequencyBins; j++ {
+			val := frequencyMatrix[i][j]
+			for k := max(0, i-yDim); k < min(numWindows, i+yDim+1); k++ {
+				for l := max(0, j-xDim); l < min(numFrequencyBins, j+xDim+1); l++ {
+					val = max(val, frequencyMatrix[k][l])
 				}
 			}
-			output[i][j] = cur
+			filtered[i][j] = val
+		}
+	}
+	printArray(filtered)
+}
+
+func displayPeaks(peaks [][]float64) error {
+	numWindows := len(peaks)
+	if numWindows == 0 {
+		return errors.New("no frames available")
+	}
+	numFrequencyBins := len(peaks[0])
+	if numFrequencyBins == 0 {
+		return errors.New("no frequencies available")
+	}
+
+	img := image.NewGray(image.Rect(0, 0, numWindows, numFrequencyBins))
+
+	//lower frequencies are written to the bottom, higher ones to the top
+	for x := 0; x < numWindows; x++ {
+		for y := 0; y < numFrequencyBins; y++ {
+			img.SetGray(x, numFrequencyBins-1-y, color.Gray{255})
 		}
 	}
 
-	for i := 0; i < height; i++ {
-		for j := 0; j < width; j++ {
-			if samples[i][j] != output[i][j] {
-				samples[i][j] = 0
-			}
-		}
+	f, err := os.Create("constelationMap.png")
+	if err != nil {
+		return err
 	}
-	return output
+	defer f.Close()
+
+	return png.Encode(f, img)
 }

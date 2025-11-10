@@ -57,24 +57,21 @@ func generateSpectogram(samples []float64) [][]float64 {
 }
 
 func spectogramImage(freqMatrix [][]float64) error {
-	//width and height naming is swapped in comparison to what is usual matrix naming convention
-	//since the inner slice is going to hold the frequency range which is the y-axis in a spectogram
-	//while the outer slice will determine time on the the x-axis
-	width := len(freqMatrix)
-	if width == 0 {
+	numWindows := len(freqMatrix)
+	if numWindows == 0 {
 		return errors.New("no frames available")
 	}
-	height := len(freqMatrix[0])
-	if height == 0 {
+	numFrequencyBins := len(freqMatrix[0])
+	if numFrequencyBins == 0 {
 		return errors.New("no frequencies available")
 	}
 
-	img := image.NewGray(image.Rect(0, 0, width, height))
+	img := image.NewGray(image.Rect(0, 0, numWindows, numFrequencyBins))
 
-	//find the max magnitude which will be used for normalisation
+	// find the max magnitude which will be used for normalisation
 	maxMagnitude := 0.0
-	for i := 0; i < width; i++ {
-		for j := 0; j < height; j++ {
+	for i := 0; i < numWindows; i++ {
+		for j := 0; j < numFrequencyBins; j++ {
 			mag := freqMatrix[i][j]
 			if mag > maxMagnitude {
 				maxMagnitude = mag
@@ -82,14 +79,14 @@ func spectogramImage(freqMatrix [][]float64) error {
 		}
 	}
 
-	//lower frequencies are written to the bottom, higher ones to the top
-	for x := 0; x < width; x++ {
-		for y := 0; y < height; y++ {
+	// lower frequencies are written to the bottom, higher ones to the top
+	for x := 0; x < numWindows; x++ {
+		for y := 0; y < numFrequencyBins; y++ {
 			mag := freqMatrix[x][y]
 			//value := 255 * mag / maxMagnitude
 			//log based scaling so that higher frequencies are visible in the image
 			value := math.Log10(1+mag) / math.Log10(1+maxMagnitude) * 255
-			img.SetGray(x, height-1-y, color.Gray{uint8(value)})
+			img.SetGray(x, numFrequencyBins-1-y, color.Gray{uint8(value)})
 		}
 	}
 
