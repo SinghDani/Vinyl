@@ -41,7 +41,7 @@ func lowpass(samples []float64, sampleRate int, cutoff int) []float64 {
 	return output
 }
 
-func extractPeaks(frequencyMatrix [][]float64, xDim, yDim int) {
+func extractPeaks(frequencyMatrix [][]float64, xDim, yDim int) [][]bool {
 	if xDim == 0 || yDim == 0 {
 		log.Fatal("xDim and yDim have to be odd to center grid around point")
 	}
@@ -53,6 +53,7 @@ func extractPeaks(frequencyMatrix [][]float64, xDim, yDim int) {
 
 	for i := 0; i < numWindows; i++ {
 		filtered[i] = make([]float64, numFrequencyBins)
+
 		for j := 0; j < numFrequencyBins; j++ {
 			val := frequencyMatrix[i][j]
 			for k := max(0, i-yDim); k < min(numWindows, i+yDim+1); k++ {
@@ -63,10 +64,23 @@ func extractPeaks(frequencyMatrix [][]float64, xDim, yDim int) {
 			filtered[i][j] = val
 		}
 	}
-	printArray(filtered)
+	//printArray(filtered)
+
+	peaks := make([][]bool, numWindows)
+	for i := 0; i < numWindows; i++ {
+		peaks[i] = make([]bool, numFrequencyBins)
+		for j := 0; j < numFrequencyBins; j++ {
+			//!=0 check since zero padding causes all of the last points to be set to peaks
+			if frequencyMatrix[i][j] == filtered[i][j] && frequencyMatrix[i][j] != 0 {
+				peaks[i][j] = true
+			}
+		}
+	}
+	//printArray(peaks)
+	return peaks
 }
 
-func displayPeaks(peaks [][]float64) error {
+func displayPeaks(peaks [][]bool) error {
 	numWindows := len(peaks)
 	if numWindows == 0 {
 		return errors.New("no frames available")
@@ -81,7 +95,11 @@ func displayPeaks(peaks [][]float64) error {
 	//lower frequencies are written to the bottom, higher ones to the top
 	for x := 0; x < numWindows; x++ {
 		for y := 0; y < numFrequencyBins; y++ {
-			img.SetGray(x, numFrequencyBins-1-y, color.Gray{255})
+			var val uint8 = 0
+			if peaks[x][y] {
+				val = 255
+			}
+			img.SetGray(x, numFrequencyBins-1-y, color.Gray{val})
 		}
 	}
 
