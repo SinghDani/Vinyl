@@ -52,7 +52,6 @@ func generateSpectogram(samples []float64) [][]float64 {
 			freqMatrix[i][j] = cmplx.Abs(fftResult[j])
 		}
 	}
-
 	return freqMatrix
 }
 

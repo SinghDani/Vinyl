@@ -2,6 +2,7 @@ package main
 
 import (
 	"errors"
+	"fmt"
 	"image"
 	"image/color"
 	"image/png"
@@ -41,7 +42,23 @@ func lowpass(samples []float64, sampleRate int, cutoff int) []float64 {
 	return output
 }
 
-func extractPeaks(frequencyMatrix [][]float64, xDim, yDim int) [][]bool {
+func getMean(frequencyMatrix [][]float64) float64 {
+	count := 0.0
+	sum := 0.0
+	for i := 0; i < len(frequencyMatrix); i++ {
+		for j := 0; j < len(frequencyMatrix[i]); j++ {
+			if frequencyMatrix[i][j] != 0 {
+				count++
+				sum += frequencyMatrix[i][j]
+			}
+		}
+	}
+	return sum / count
+}
+
+// find the most prominent frequencies through a 2d filter which will find the
+// frequencies with the highest magnitude in a neighbourhood grid specified by xDim and yDim and only keep those
+func extractPeaks(frequencyMatrix [][]float64, xDim, yDim int, threshhold float64) [][]bool {
 	if xDim == 0 || yDim == 0 {
 		log.Fatal("xDim and yDim have to be odd to center grid around point")
 	}
@@ -51,6 +68,7 @@ func extractPeaks(frequencyMatrix [][]float64, xDim, yDim int) [][]bool {
 	numWindows := len(frequencyMatrix)
 	numFrequencyBins := len(frequencyMatrix[0])
 	peaks := make([][]bool, numWindows)
+	count := 0
 
 	for i := 0; i < numWindows; i++ {
 		peaks[i] = make([]bool, numFrequencyBins)
@@ -58,14 +76,19 @@ func extractPeaks(frequencyMatrix [][]float64, xDim, yDim int) [][]bool {
 			isPeak := true
 			curMagnitude := frequencyMatrix[i][j]
 			//if statement needed since the last windows is zero padded (see generateSpectogram function)
-			// which will cause all the points in that region to be set to true
-			if curMagnitude == 0 {
-				isPeak = false
-				break
+			//which will cause all the points in that region to be considered peaks
+			if curMagnitude < threshhold {
+				continue
 			}
+
 			for k := max(0, i-yDim); k < min(numWindows, i+yDim+1); k++ {
 				for l := max(0, j-xDim); l < min(numFrequencyBins, j+xDim+1); l++ {
-					if curMagnitude < frequencyMatrix[k][l] {
+					//next 2 if statements needed for finding strict peaks in a neighbourhood
+					//and to avoid plateaus in which multiple neighbourhodd points have the same magnitude
+					if k == i && l == j {
+						continue
+					}
+					if curMagnitude <= frequencyMatrix[k][l] {
 						isPeak = false
 						break
 					}
@@ -76,11 +99,13 @@ func extractPeaks(frequencyMatrix [][]float64, xDim, yDim int) [][]bool {
 			}
 			if isPeak {
 				peaks[i][j] = true
+				count++
 			}
 		}
 	}
 	//printArray(filtered)
 	//printArray(peaks)
+	fmt.Println("peak amount", count)
 	return peaks
 }
 
