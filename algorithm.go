@@ -70,22 +70,21 @@ func extractPeaks(frequencyMatrix [][]float64, xDim, yDim int, threshhold float6
 	peaks := make([][]bool, numWindows)
 	count := 0
 
-	for i := 0; i < numWindows; i++ {
-		peaks[i] = make([]bool, numFrequencyBins)
-		for j := 0; j < numFrequencyBins; j++ {
+	for row := 0; row < numWindows; row++ {
+		peaks[row] = make([]bool, numFrequencyBins)
+		for col := 0; col < numFrequencyBins; col++ {
 			isPeak := true
-			curMagnitude := frequencyMatrix[i][j]
-			//if statement needed since the last windows is zero padded (see generateSpectogram function)
-			//which will cause all the points in that region to be considered peaks
-			if curMagnitude < threshhold {
+			curMagnitude := frequencyMatrix[row][col]
+			//exclude all points that have to low of a magnitude or are 0
+			if curMagnitude < threshhold || curMagnitude == 0 {
 				continue
 			}
 
-			for k := max(0, i-yDim); k < min(numWindows, i+yDim+1); k++ {
-				for l := max(0, j-xDim); l < min(numFrequencyBins, j+xDim+1); l++ {
+			for k := max(0, row-yDim); k < min(numWindows, row+yDim+1); k++ {
+				for l := max(0, col-xDim); l < min(numFrequencyBins, col+xDim+1); l++ {
 					//next 2 if statements needed for finding strict peaks in a neighbourhood
-					//and to avoid plateaus in which multiple neighbourhodd points have the same magnitude
-					if k == i && l == j {
+					//and to avoid plateaus in which multiple neighbourhood points have the same magnitude
+					if k == row && l == col {
 						continue
 					}
 					if curMagnitude <= frequencyMatrix[k][l] {
@@ -98,7 +97,7 @@ func extractPeaks(frequencyMatrix [][]float64, xDim, yDim int, threshhold float6
 				}
 			}
 			if isPeak {
-				peaks[i][j] = true
+				peaks[row][col] = true
 				count++
 			}
 		}
