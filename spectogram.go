@@ -10,16 +10,13 @@ import (
 	"os"
 )
 
-const windowSize = 1024
-const hopSize = windowSize / 2 //how much to slide each window by
-
-func generateSpectogram(samples []float64) [][]float64 {
+func generateSpectogram(samples []float64, windowSize, hopSize int) [][]float64 {
 	N := len(samples)
 	if N == 0 {
 		return [][]float64{}
 	}
 
-	windowCount := int(math.Ceil(float64(N-windowSize)/hopSize)) + 1
+	windowCount := int(math.Ceil(float64(N-windowSize)/float64(hopSize))) + 1
 
 	freqMatrix := make([][]float64, windowCount)
 
