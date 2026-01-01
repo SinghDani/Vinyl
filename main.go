@@ -5,12 +5,16 @@ import (
 	"log"
 )
 
-const FrequencyRate = 44100
+const (
+	windowSize = 1024
+	hopSize    = windowSize / 2 //how much to slide each window by
+)
 
 func main() {
 	/*
 		//signal generation
 		N := 20000
+		FrequencyRate := 44100
 		samples := make([]float64, N)
 		for i := 0; i < N; i++ {
 			t := float64(i) / FrequencyRate
@@ -55,33 +59,35 @@ func main() {
 		}
 	}
 
-	//wavData.samples = lowpass(wavData.samples, FrequencyRate, 5000)
+	//wavData.samples = lowpass(wavData.samples, int(wavData.header.SampleRate), 5000)
 	//wavData.samples = downsample(wavData.samples, 4)
 
-	spectogram := generateSpectogram(wavData.samples)
+	spectogram := generateSpectogram(wavData.samples, windowSize, hopSize)
 	err = spectogramImage(spectogram)
 	if err != nil {
 		log.Fatal(err)
 	}
 
-	fmt.Println("length audio: ", len(spectogram))
+	fmt.Println("length audio: ", amoundData(spectogram))
 
-	peaks := extractPeaks(spectogram, 21, 21, 0.00000001)
+	peaks := extractPeaks(spectogram, 21, 21, 0)
 	err = displayPeaks(peaks)
 	if err != nil {
 		log.Fatal(err)
 	}
-	/*
-		samples := [][]float64{
-			{1., 3., 0., 4., 9},
-			{7., 3., 1., 4., 3},
-			{2., 3., 5., 4., 0},
-			{4., 2., 1., 8., 4},
-		}
 
-		printArray(samples)
-		printArray(extractPeaks(samples, 5, 5))
-	*/
+	fmt.Println("max distance until next peak", maxTimeBeteenNeighbourPeaks(peaks))
+	fmt.Println("averagae distance until next peak", averageTimeBeteenNeighbourPeaks(peaks))
+
+	samples := [][]float64{
+		{1., 3., 0., 4., 9},
+		{7., 3., 1., 4., 3},
+		{2., 3., 5., 4., 0},
+		{4., 2., 1., 8., 4},
+	}
+
+	printArray(samples)
+	printArray(extractPeaks(samples, 5, 5, 0))
 }
 
 func printArray[T any](samples [][]T) {
@@ -89,4 +95,12 @@ func printArray[T any](samples [][]T) {
 		fmt.Println(samples[i])
 	}
 	fmt.Println()
+}
+
+func amoundData(samples [][]float64) int {
+	result := 0
+	for _, window := range samples {
+		result += len(window)
+	}
+	return result
 }
