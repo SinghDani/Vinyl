@@ -1,11 +1,8 @@
 package main
 
 import (
-	"math"
 	"math/cmplx"
 )
-
-const PI = math.Pi
 
 // start refers to where the pointer to the samples array currently is,
 // stride refers to the distance between an even index and the odd index it's supposed to be combined with,
