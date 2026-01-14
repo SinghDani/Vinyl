@@ -143,6 +143,8 @@ func displayPeaks(peaks [][]bool) error {
 func generateHashes(peaks [][]bool, secondsOffset float64, secondsThreshold float64, frequencyUpperBound, frequencyLowerBound, numPairsPerAnchor int) {
 	numWindows := len(peaks)
 	numBins := len(peaks[0])
+	secondsOffset = max(secondsOffset, 1)       // min offset should be 1
+	secondsThreshold = max(secondsThreshold, 1) // min secondsThreshold should be 1
 
 	for window := 0; window < numWindows; window++ {
 		for bin := 0; bin < numBins; bin++ {
