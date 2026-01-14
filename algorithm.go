@@ -45,8 +45,9 @@ func lowpass(samples []float64, sampleRate int, cutoff int) []float64 {
 func getMean(frequencyMatrix [][]float64) float64 {
 	count := 0.0
 	sum := 0.0
+	numFrequencyBins := len(frequencyMatrix[0])
 	for i := 0; i < len(frequencyMatrix); i++ {
-		for j := 0; j < len(frequencyMatrix[i]); j++ {
+		for j := 0; j < numFrequencyBins; j++ {
 			if frequencyMatrix[i][j] != 0 {
 				count++
 				sum += frequencyMatrix[i][j]
@@ -70,24 +71,24 @@ func extractPeaks(frequencyMatrix [][]float64, xDim, yDim int, threshhold float6
 	peaks := make([][]bool, numWindows)
 	count := 0
 
-	for row := 0; row < numWindows; row++ {
-		peaks[row] = make([]bool, numFrequencyBins)
-		for col := 0; col < numFrequencyBins; col++ {
+	for window := 0; window < numWindows; window++ {
+		peaks[window] = make([]bool, numFrequencyBins)
+		for bin := 0; bin < numFrequencyBins; bin++ {
 			isPeak := true
-			curMagnitude := frequencyMatrix[row][col]
+			curMagnitude := frequencyMatrix[window][bin]
 			//exclude all points that have to low of a magnitude or are 0
 			if curMagnitude < threshhold || curMagnitude == 0 {
 				continue
 			}
 
-			for k := max(0, row-yDim); k < min(numWindows, row+yDim+1); k++ {
-				for l := max(0, col-xDim); l < min(numFrequencyBins, col+xDim+1); l++ {
+			for i := max(0, window-yDim); i < min(numWindows, window+yDim+1); i++ {
+				for j := max(0, bin-xDim); j < min(numFrequencyBins, bin+xDim+1); j++ {
 					//next 2 if statements needed for finding strict peaks in a neighbourhood
 					//and to avoid plateaus in which multiple neighbourhood points have the same magnitude
-					if k == row && l == col {
+					if i == window && j == bin {
 						continue
 					}
-					if curMagnitude <= frequencyMatrix[k][l] {
+					if curMagnitude <= frequencyMatrix[i][j] {
 						isPeak = false
 						break
 					}
@@ -97,13 +98,11 @@ func extractPeaks(frequencyMatrix [][]float64, xDim, yDim int, threshhold float6
 				}
 			}
 			if isPeak {
-				peaks[row][col] = true
+				peaks[window][bin] = true
 				count++
 			}
 		}
 	}
-	//printArray(filtered)
-	//printArray(peaks)
 	fmt.Println("peak amount", count)
 	return peaks
 }
@@ -138,4 +137,90 @@ func displayPeaks(peaks [][]bool) error {
 	defer f.Close()
 
 	return png.Encode(f, img)
+}
+
+// TODO: optimise maybe by passing in also the amount peaks
+func generateHashes(peaks [][]bool, secondsOffset float64, secondsThreshold float64, frequencyUpperBound, frequencyLowerBound, numPairsPerAnchor int) {
+	numWindows := len(peaks)
+	numBins := len(peaks[0])
+
+	for window := 0; window < numWindows; window++ {
+		for bin := 0; bin < numBins; bin++ {
+			anchor := peaks[window][bin]
+			if !anchor { // if anchor is not peak
+				continue
+			}
+
+			//TODO add start seconds conversion here
+
+			for curWindow := window + 1; curWindow < numWindows; curWindow++ {
+				for curBin := max(0, bin-frequencyLowerBound); curBin < min(numBins, bin+frequencyUpperBound+1); curBin++ {
+					curPoint := peaks[curWindow][curBin]
+					if !curPoint { // if point is not a peak
+						continue
+					}
+
+					fmt.Printf("Hash(window, bin) between: (%d, %d) : (%d, %d)\n", window, bin, curWindow, curBin)
+				}
+			}
+		}
+	}
+
+}
+
+func maxTimeBeteenNeighbourPeaks(peaks [][]bool) int {
+	max := 0
+	for window := 0; window < len(peaks); window++ {
+		found := false
+		for bin := 0; bin < len(peaks[window]); bin++ {
+			if peaks[window][bin] {
+				for i := window + 1; i < len(peaks); i++ {
+					for j := 0; j < len(peaks[i]); j++ {
+						if peaks[i][j] {
+							found = true
+							if max < i-window {
+								max = i - window
+							}
+							break
+						}
+					}
+					if found {
+						break
+					}
+				}
+				break
+			}
+		}
+	}
+	return max
+}
+
+func averageTimeBeteenNeighbourPeaks(peaks [][]bool) float64 {
+	sum := 0.0
+	count := 0.0
+	for window := 0; window < len(peaks); window++ {
+		found := false
+		for bin := 0; bin < len(peaks[window]); bin++ {
+			if peaks[window][bin] {
+				for i := window + 1; i < len(peaks); i++ {
+					for j := 0; j < len(peaks[i]); j++ {
+						if peaks[i][j] {
+							found = true
+							sum += float64((i - window))
+							count++
+							break
+						}
+					}
+					if found {
+						break
+					}
+				}
+				break
+			}
+		}
+	}
+	if count == 0 {
+		return 0
+	}
+	return sum / count
 }
