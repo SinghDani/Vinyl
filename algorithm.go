@@ -145,11 +145,11 @@ func generateHashes(peaks [][]bool, secondsOffset float64, secondsThreshold floa
 	numBins := len(peaks[0])
 	secondsOffset = max(secondsOffset, 1)       // min offset should be 1
 	secondsThreshold = max(secondsThreshold, 1) // min secondsThreshold should be 1
+	//frequencyRate := 8
 
 	for window := 0; window < numWindows; window++ {
 		for bin := 0; bin < numBins; bin++ {
-			anchor := peaks[window][bin]
-			if !anchor { // if anchor is not peak
+			if !peaks[window][bin] { // if anchor is not peak
 				continue
 			}
 
@@ -157,12 +157,18 @@ func generateHashes(peaks [][]bool, secondsOffset float64, secondsThreshold floa
 
 			for curWindow := window + 1; curWindow < numWindows; curWindow++ {
 				for curBin := max(0, bin-frequencyLowerBound); curBin < min(numBins, bin+frequencyUpperBound+1); curBin++ {
-					curPoint := peaks[curWindow][curBin]
-					if !curPoint { // if point is not a peak
+					if !peaks[curWindow][curBin] { // if point is not a peak
 						continue
 					}
 
-					fmt.Printf("Hash(window, bin) between: (%d, %d) : (%d, %d)\n", window, bin, curWindow, curBin)
+					/*
+								9 bit 					9 bit 				12 bit
+						hash: anchor frequency	|	point frequency	|	delta time
+						data: anchor time
+					*/
+					hash := uint32((bin << 21) | (curBin << 12) | (curWindow - window))
+					fmt.Printf("Hash(window, bin) between: (%d, %d) | (%d, %d)	:=	%.32b\n", window, bin, curWindow, curBin, hash)
+
 				}
 			}
 		}
