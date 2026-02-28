@@ -10,6 +10,11 @@ import (
 	"os"
 )
 
+type hashEntry struct {
+	hash uint32
+	data uint64 //anchor time | songId
+}
+
 // will decrease the sample rate by factor
 // in this case factor 4 to go from 44.1khz -> 11.025 hz
 func downsample(samples []float64, factor int) []float64 {
@@ -140,12 +145,12 @@ func displayPeaks(peaks [][]bool) error {
 }
 
 // TODO: optimise maybe by passing in also the amount peaks
-func generateHashes(peaks [][]bool, secondsOffset float64, secondsThreshold float64, frequencyUpperBound, frequencyLowerBound, numPairsPerAnchor int) {
+func generateHashes(peaks [][]bool, secondsOffset float64, secondsThreshold float64, frequencyBinUpperBound, frequencyBinLowerBound, numPairsPerAnchor int) []hashEntry {
 	numWindows := len(peaks)
 	numBins := len(peaks[0])
 	secondsOffset = max(secondsOffset, 1)       // min offset should be 1
 	secondsThreshold = max(secondsThreshold, 1) // min secondsThreshold should be 1
-	//frequencyRate := 8
+	hashes := []hashEntry{}
 
 	for window := 0; window < numWindows; window++ {
 		for bin := 0; bin < numBins; bin++ {
@@ -156,24 +161,27 @@ func generateHashes(peaks [][]bool, secondsOffset float64, secondsThreshold floa
 			//TODO add start seconds conversion here
 
 			for curWindow := window + 1; curWindow < numWindows; curWindow++ {
-				for curBin := max(0, bin-frequencyLowerBound); curBin < min(numBins, bin+frequencyUpperBound+1); curBin++ {
+				for curBin := max(0, bin-frequencyBinLowerBound); curBin < min(numBins, bin+frequencyBinUpperBound+1); curBin++ {
 					if !peaks[curWindow][curBin] { // if point is not a peak
 						continue
 					}
 
-					/*
-								9 bit 					9 bit 				12 bit
-						hash: anchor frequency	|	point frequency	|	delta time
-						data: anchor time
+					/* hash structure
+							9 bit 					9 bit 				14 bit
+					hash: anchor frequency	|	point frequency	|	delta time
+							32 bit					32 bit
+					data: anchor time		|	songId
 					*/
-					hash := uint32((bin << 21) | (curBin << 12) | (curWindow - window))
-					fmt.Printf("Hash(window, bin) between: (%d, %d) | (%d, %d)	:=	%.32b\n", window, bin, curWindow, curBin, hash)
+					hash := uint32((bin << 23) | (curBin << 14) | (curWindow - window))
+					data := uint64(window)
+					fmt.Printf("Hash(window, bin) between: (%d, %d) | (%d, %d)	:=	%.32b : data=%d\n", window, bin, curWindow, curBin, hash, data)
 
+					hashes = append(hashes, hashEntry{hash, data})
 				}
 			}
 		}
 	}
-
+	return hashes
 }
 
 func maxTimeBeteenNeighbourPeaks(peaks [][]bool) int {
