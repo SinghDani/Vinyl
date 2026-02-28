@@ -175,8 +175,7 @@ func generateHashes(peaks [][]bool, secondsOffset float64, secondsThreshold floa
 					/* hash structure
 							9 bit 					9 bit 				14 bit
 					hash: anchor frequency	|	point frequency	|	delta time
-							32 bit					32 bit
-					data: anchor time		|	songId
+					data: anchor time
 					*/
 					hash := (uint32(bin) << 23) | (uint32(curBin) << 14) | (uint32(curWindow - window))
 					data := uint32(window)
