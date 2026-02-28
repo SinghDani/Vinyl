@@ -114,7 +114,7 @@ func main() {
 			fmt.Printf("%+v\n", hashes)
 	*/
 
-	fmt.Println(SecondsToWindowsTwo(0.000000001))
+	fmt.Println(SecondsToWindows(0.000000001))
 }
 
 func printArray[T any](samples [][]T) {
