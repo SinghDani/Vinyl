@@ -148,8 +148,6 @@ func displayPeaks(peaks [][]bool) error {
 func generateHashes(peaks [][]bool, secondsOffset float64, secondsThreshold float64, frequencyBinUpperBound, frequencyBinLowerBound, numPairsPerAnchor int) []hashEntry {
 	numWindows := len(peaks)
 	numBins := len(peaks[0])
-	secondsOffset = max(secondsOffset, 1)       // min offset should be 1
-	secondsThreshold = max(secondsThreshold, 1) // min secondsThreshold should be 1
 	hashes := []hashEntry{}
 
 	for window := 0; window < numWindows; window++ {
@@ -158,10 +156,18 @@ func generateHashes(peaks [][]bool, secondsOffset float64, secondsThreshold floa
 				continue
 			}
 
-			//TODO add start seconds conversion here
+			targetZoneStart := window + max(SecondsToWindows(secondsOffset), 1)
+			targetZoneEnd := window + max(SecondsToWindows(secondsThreshold), 1)
 
-			for curWindow := window + 1; curWindow < numWindows; curWindow++ {
+			generatedHashes := 0
+			for curWindow := targetZoneStart; curWindow < min(numWindows, targetZoneEnd+1); curWindow++ {
+				if generatedHashes >= numPairsPerAnchor {
+					break
+				}
 				for curBin := max(0, bin-frequencyBinLowerBound); curBin < min(numBins, bin+frequencyBinUpperBound+1); curBin++ {
+					if generatedHashes >= numPairsPerAnchor {
+						break
+					}
 					if !peaks[curWindow][curBin] { // if point is not a peak
 						continue
 					}
@@ -172,11 +178,12 @@ func generateHashes(peaks [][]bool, secondsOffset float64, secondsThreshold floa
 							32 bit					32 bit
 					data: anchor time		|	songId
 					*/
-					hash := uint32((bin << 23) | (curBin << 14) | (curWindow - window))
+					hash := (uint32(bin) << 23) | (uint32(curBin) << 14) | (uint32(curWindow - window))
 					data := uint64(window)
 					fmt.Printf("Hash(window, bin) between: (%d, %d) | (%d, %d)	:=	%.32b : data=%d\n", window, bin, curWindow, curBin, hash, data)
 
 					hashes = append(hashes, hashEntry{hash, data})
+					generatedHashes++
 				}
 			}
 		}
