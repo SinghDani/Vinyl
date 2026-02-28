@@ -11,8 +11,8 @@ import (
 )
 
 type hashEntry struct {
-	hash uint32
-	data uint64 //anchor time | songId
+	hash uint32 // anchor freq | target freq | dt
+	data uint32 // anchor time
 }
 
 // will decrease the sample rate by factor
@@ -179,8 +179,8 @@ func generateHashes(peaks [][]bool, secondsOffset float64, secondsThreshold floa
 					data: anchor time		|	songId
 					*/
 					hash := (uint32(bin) << 23) | (uint32(curBin) << 14) | (uint32(curWindow - window))
-					data := uint64(window)
-					fmt.Printf("Hash(window, bin) between: (%d, %d) | (%d, %d)	:=	%.32b : data=%d\n", window, bin, curWindow, curBin, hash, data)
+					data := uint32(window)
+					//fmt.Printf("Hash(window, bin) between: (%d, %d) | (%d, %d)	:=	%.32b : data=%d\n", window, bin, curWindow, curBin, hash, data)
 
 					hashes = append(hashes, hashEntry{hash, data})
 					generatedHashes++
