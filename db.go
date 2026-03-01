@@ -8,7 +8,7 @@ import (
 )
 
 type DBConnection struct {
-	DB *sql.DB
+	db *sql.DB
 }
 
 func NewDBConnection() (*DBConnection, error) {
