@@ -16,10 +16,12 @@ func NewDBConnection() (*DBConnection, error) {
 	if err != nil {
 		return nil, err
 	}
-
-	if db.Ping() != nil {
+	if err := db.Ping(); err != nil {
 		return nil, err
 	}
-
 	return &DBConnection{db}, nil
+}
+
+func (db *DBConnection) CloseDBConnection() {
+	db.db.Close()
 }
