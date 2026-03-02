@@ -2,7 +2,6 @@ package main
 
 import (
 	"database/sql"
-	"errors"
 	"os"
 
 	_ "github.com/jackc/pgx/v5/stdlib"
@@ -27,26 +26,41 @@ func (db *DBConnection) CloseDBConnection() {
 	db.db.Close()
 }
 
-func (db *DBConnection) ContainsSong(song string) (bool, error) {
-	var exists int
-	row := db.db.QueryRow("SELECT 1 FROM songs WHERE songname = $1", song)
+func (db *DBConnection) ContainsSong(songname string) (bool, error) {
+	var exists bool
+	row := db.db.QueryRow("SELECT EXISTS (SELECT 1 FROM songs WHERE name = $1)", songname)
 	if err := row.Scan(&exists); err != nil {
-		if err == sql.ErrNoRows {
-			return false, nil
-		}
 		return false, err
 	}
-	return true, nil
+	return exists, nil
 }
 
-func (db *DBConnection) StoreSong(songname string) error {
-	contains, err := db.ContainsSong(songname)
-	if contains {
-		return errors.New("song already in db")
-	} else if err != nil {
+func (db *DBConnection) RemoveSong(songname string) error {
+	_, err := db.db.Exec("DELETE FROM songs WHERE name = $1", songname)
+	return err
+}
+
+func (db *DBConnection) StoreSong(songname string) (int, error) {
+	//since name is unique will return err if song already in db
+	var id int
+	row := db.db.QueryRow("INSERT INTO songs (name) VALUES($1) RETURNING id", songname)
+	if err := row.Scan(&id); err != nil {
+		return 0, err
+	}
+	return id, nil
+}
+
+func (db *DBConnection) StoreHashes(hashes []hashEntry, songname string) error {
+	id, err := db.StoreSong(songname)
+	if err != nil {
 		return err
 	}
-
-	_, err = db.db.Exec("INSERT INTO songs (songname) VALUES($1)", songname)
-	return err
+	for _, hash := range hashes {
+		_, err := db.db.Exec("INSERT INTO hashes (hash, song_id, anchor_time) VALUES ($1, $2, $3)", hash.hash, id, hash.anchorTime)
+		if err != nil {
+			db.RemoveSong(songname)
+			return err
+		}
+	}
+	return nil
 }
