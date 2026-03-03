@@ -7,6 +7,12 @@ import (
 	_ "github.com/jackc/pgx/v5/stdlib"
 )
 
+type Fingerprint struct {
+	Hash       uint32 // anchor freq | target freq | dt
+	AnchorTime uint32
+	SongId     uint32
+}
+
 type DBConnection struct {
 	db *sql.DB
 }
@@ -22,8 +28,8 @@ func NewDBConnection() (*DBConnection, error) {
 	return &DBConnection{db}, nil
 }
 
-func (db *DBConnection) CloseDBConnection() {
-	db.db.Close()
+func (db *DBConnection) CloseDBConnection() error {
+	return db.db.Close()
 }
 
 func (db *DBConnection) ContainsSong(songname string) (bool, error) {
@@ -50,17 +56,34 @@ func (db *DBConnection) StoreSong(songname string) (int, error) {
 	return id, nil
 }
 
-func (db *DBConnection) StoreHashes(hashes []hashEntry, songname string) error {
-	id, err := db.StoreSong(songname)
+func (db *DBConnection) StoreHashes(hashes []GeneratedHash, songname string) error {
+	tx, err := db.db.Begin()
 	if err != nil {
 		return err
 	}
+	defer tx.Rollback()
+
+	var id int
+	row := tx.QueryRow("INSERT INTO songs (name) VALUES($1) RETURNING id", songname)
+	if err := row.Scan(&id); err != nil {
+		return err
+	}
+
+	stmt, err := tx.Prepare("INSERT INTO fingerprints (hash, song_id, anchor_time) VALUES($1, $2, $3)")
+	if err != nil {
+		return err
+	}
+	defer stmt.Close()
+
 	for _, hash := range hashes {
-		_, err := db.db.Exec("INSERT INTO hashes (hash, song_id, anchor_time) VALUES ($1, $2, $3)", hash.hash, id, hash.anchorTime)
-		if err != nil {
-			db.RemoveSong(songname)
+		if _, err := stmt.Exec(hash.Hash, id, hash.AnchorTime); err != nil {
 			return err
 		}
 	}
-	return nil
+
+	return tx.Commit()
+}
+
+func (db *DBConnection) ExtractHashes() ([]Fingerprint, error) {
+	return nil, nil
 }
