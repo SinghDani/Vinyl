@@ -10,7 +10,7 @@ import (
 	"os"
 )
 
-type hashEntry struct {
+type GeneratedHash struct {
 	hash       uint32 // anchor freq | target freq | dt
 	anchorTime uint32
 }
@@ -145,10 +145,10 @@ func displayPeaks(peaks [][]bool) error {
 }
 
 // TODO: optimise maybe by passing in also the amount peaks
-func generateHashes(peaks [][]bool, secondsOffset float64, secondsThreshold float64, frequencyBinUpperBound, frequencyBinLowerBound, numPairsPerAnchor int) []hashEntry {
+func generateHashes(peaks [][]bool, secondsOffset float64, secondsThreshold float64, frequencyBinUpperBound, frequencyBinLowerBound, numPairsPerAnchor int) []GeneratedHash {
 	numWindows := len(peaks)
 	numBins := len(peaks[0])
-	hashes := []hashEntry{}
+	hashes := []GeneratedHash{}
 
 	for window := 0; window < numWindows; window++ {
 		for bin := 0; bin < numBins; bin++ {
@@ -180,7 +180,7 @@ func generateHashes(peaks [][]bool, secondsOffset float64, secondsThreshold floa
 					anchorTime := uint32(window)
 					//fmt.Printf("Hash(window, bin) between: (%d, %d) | (%d, %d)	:=	%.32b : data=%d\n", window, bin, curWindow, curBin, hash, data)
 
-					hashes = append(hashes, hashEntry{hash, anchorTime})
+					hashes = append(hashes, GeneratedHash{hash, anchorTime})
 					generatedHashes++
 				}
 			}
