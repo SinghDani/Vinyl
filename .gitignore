@@ -16,6 +16,7 @@ go.work.sum
 *.mp3
 
 .env/
+.env
 .venv/
 
 .DS_Store
