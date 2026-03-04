@@ -11,8 +11,8 @@ import (
 )
 
 type GeneratedHash struct {
-	hash       uint32 // anchor freq | target freq | dt
-	anchorTime uint32
+	Hash       uint32 // anchor freq | target freq | dt
+	AnchorTime uint32
 }
 
 // will decrease the sample rate by factor
