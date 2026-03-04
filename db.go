@@ -2,6 +2,7 @@ package main
 
 import (
 	"database/sql"
+	"errors"
 	"os"
 
 	_ "github.com/jackc/pgx/v5/stdlib"
@@ -9,8 +10,8 @@ import (
 
 type Fingerprint struct {
 	Hash       uint32 // anchor freq | target freq | dt
-	AnchorTime uint32
 	SongId     uint32
+	AnchorTime uint32
 }
 
 type DBConnection struct {
@@ -18,7 +19,12 @@ type DBConnection struct {
 }
 
 func NewDBConnection() (*DBConnection, error) {
-	db, err := sql.Open("pgx", os.Getenv("CONNECTIONSTRING"))
+	connection := os.Getenv("CONNECTIONSTRING")
+	if connection == "" {
+		return nil, errors.New("connection string is empty")
+	}
+
+	db, err := sql.Open("pgx", connection)
 	if err != nil {
 		return nil, err
 	}
@@ -46,24 +52,18 @@ func (db *DBConnection) RemoveSong(songname string) error {
 	return err
 }
 
-func (db *DBConnection) StoreSong(songname string) (int, error) {
-	//since name is unique will return err if song already in db
-	var id int
-	row := db.db.QueryRow("INSERT INTO songs (name) VALUES($1) RETURNING id", songname)
-	if err := row.Scan(&id); err != nil {
-		return 0, err
-	}
-	return id, nil
-}
-
 func (db *DBConnection) StoreHashes(hashes []GeneratedHash, songname string) error {
+	if len(hashes) == 0 {
+		return errors.New("no hashes to store")
+	}
 	tx, err := db.db.Begin()
 	if err != nil {
 		return err
 	}
 	defer tx.Rollback()
 
-	var id int
+	var id int32
+	//since name is unique will return err if song already in db
 	row := tx.QueryRow("INSERT INTO songs (name) VALUES($1) RETURNING id", songname)
 	if err := row.Scan(&id); err != nil {
 		return err
@@ -76,7 +76,7 @@ func (db *DBConnection) StoreHashes(hashes []GeneratedHash, songname string) err
 	defer stmt.Close()
 
 	for _, hash := range hashes {
-		if _, err := stmt.Exec(hash.Hash, id, hash.AnchorTime); err != nil {
+		if _, err := stmt.Exec(int32(hash.Hash), id, int32(hash.AnchorTime)); err != nil {
 			return err
 		}
 	}
@@ -84,6 +84,33 @@ func (db *DBConnection) StoreHashes(hashes []GeneratedHash, songname string) err
 	return tx.Commit()
 }
 
-func (db *DBConnection) ExtractHashes() ([]Fingerprint, error) {
-	return nil, nil
+func (db *DBConnection) ExtractHashes(hashes []uint32) ([]Fingerprint, error) {
+	if len(hashes) == 0 {
+		return nil, nil
+	}
+	intHashes := make([]int32, len(hashes))
+	for i, h := range hashes {
+		intHashes[i] = int32(h)
+	}
+
+	var matches []Fingerprint
+	rows, err := db.db.Query("SELECT hash, song_id, anchor_time from fingerprints WHERE hash = ANY($1)", intHashes)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	for rows.Next() {
+		var hash int32
+		var songId int32
+		var anchorTime int32
+		if err := rows.Scan(&hash, &songId, &anchorTime); err != nil {
+			return nil, err
+		}
+		matches = append(matches, Fingerprint{Hash: uint32(hash), SongId: uint32(songId), AnchorTime: uint32(anchorTime)})
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return matches, nil
 }
