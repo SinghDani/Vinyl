@@ -4,6 +4,7 @@ import (
 	"encoding/binary"
 	"fmt"
 	"os"
+	"os/exec"
 )
 
 type WavHeader struct {
@@ -31,22 +32,38 @@ type WAV struct {
 type IncorrectWavFormat struct{ message string }
 
 func WavToSamples(file string) (*WAV, error) {
-	wavData, err := ParseWav("./audioFiles/" + file)
+	inPath := "./audioFiles/" + file
+	outPath := "./audioFiles/output.wav"
+
+	cmd := exec.Command(
+		"ffmpeg",
+		"-y",
+		"-i", inPath,
+		"-ac", "1",
+		"-ar", "11025",
+		"-c:a", "pcm_s16le",
+		outPath,
+	)
+
+	out, err := cmd.CombinedOutput()
 	if err != nil {
+		fmt.Println(string(out))
 		return nil, err
 	}
 
-	if wavData.header.NumChannels == 2 {
-		wavData.samples, err = stereoToMono(wavData.samples)
-		if err != nil {
-			return nil, err
+	return ParseWav(outPath)
+	/*
+		if wavData.header.NumChannels == 2 {
+			wavData.samples, err = stereoToMono(wavData.samples)
+			if err != nil {
+				return nil, err
+			}
 		}
-	}
 
-	//#TODO use ffmpeg rather
-	//wavData.samples = lowpass(wavData.samples, int(wavData.header.SampleRate), 5000)
-	//wavData.samples = downsample(wavData.samples, 4)
-	return wavData, nil
+		//#TODO use ffmpeg rather
+		wavData.samples = lowpass(wavData.samples, int(wavData.header.SampleRate), 5000)
+		wavData.samples = downsample(wavData.samples, 4)
+	*/
 }
 
 func (I IncorrectWavFormat) Error() string {
