@@ -30,6 +30,25 @@ type WAV struct {
 
 type IncorrectWavFormat struct{ message string }
 
+func WavToSamples(file string) (*WAV, error) {
+	wavData, err := ParseWav("./audioFiles/" + file)
+	if err != nil {
+		return nil, err
+	}
+
+	if wavData.header.NumChannels == 2 {
+		wavData.samples, err = stereoToMono(wavData.samples)
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	//#TODO use ffmpeg rather
+	//wavData.samples = lowpass(wavData.samples, int(wavData.header.SampleRate), 5000)
+	//wavData.samples = downsample(wavData.samples, 4)
+	return wavData, nil
+}
+
 func (I IncorrectWavFormat) Error() string {
 	return "Incorrect Wav Format: " + I.message
 }

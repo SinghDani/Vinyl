@@ -7,12 +7,103 @@ import (
 	"image/color"
 	"image/png"
 	"log"
+	"math"
 	"os"
+)
+
+// Todo make sure windowSize is not used anywhere!!!
+const (
+	PI           = math.Pi
+	samplingRate = 11025
+	windowSize   = 1024
+	hopFactor    = 2
+	hopSize      = windowSize / hopFactor //how much to slide each window by
 )
 
 type GeneratedHash struct {
 	Hash       uint32 // anchor freq | target freq | dt
 	AnchorTime uint32
+}
+
+func ExtractHashesFromFile(file string) ([]GeneratedHash, error) {
+	wavData, err := WavToSamples(file)
+	if err != nil {
+		return nil, err
+	}
+
+	return SamplesToHashes(wavData.samples)
+}
+
+func SamplesToHashes(samples []float64) ([]GeneratedHash, error) {
+	spectogram := generateSpectogram(samples, windowSize, hopSize)
+	/*
+		err := spectogramImage(spectogram)
+		if err != nil {
+			return nil, err
+		}
+	*/
+
+	//TODO don't hard code the window and threshold
+	peaks := extractPeaks(spectogram, 21, 21, getMean(spectogram))
+	/*
+		err = displayPeaks(peaks)
+		if err != nil {
+			return nil, err
+		}
+	*/
+
+	//fmt.Println("max distance until next peak", maxTimeBeteenNeighbourPeaks(peaks))
+	//fmt.Println("averagae distance until next peak", averageTimeBeteenNeighbourPeaks(peaks))
+
+	/*
+		samples2 := [][]float64{
+			{1., 5., 0., 9., 7, 1, 2, 3},
+			{7., 3., 1., 4., 0., 4, 5, 0},
+			{2., 3., 5., 4., 0., 2, 4, 3},
+			{4., 9., 1., 8., 10., 1, 3, 9},
+			{1, 2, 3, 4, 5, 7, 8, 5},
+			{2., 7., 5., 4., 0., 0, 0, 1},
+			{7., 3., 1., 6., 0., 1, 1, 1},
+		}
+
+		printArray(samples2)
+		peaks = extractPeaks(samples2, 3, 3, 0)
+		printArray(peaks)
+		seconds := 0.
+		fmt.Printf("%f seconds to window: %d\n", seconds, SecondsToWindows(seconds))
+	*/
+
+	//TODO change the thresholds and targetzone bounds
+	hashes := generateHashes(peaks, 0, 10, 1, 1, 100)
+	//fmt.Printf("Generated Hashes: %+v\n", hashes)
+
+	return hashes, nil
+}
+
+func IdentifyRecording(db *DBConnection, genHashes []GeneratedHash) (uint32, error) {
+	hashValues := make([]uint32, len(genHashes))
+	for i, hash := range genHashes {
+		hashValues[i] = hash.Hash
+	}
+	fingerPrints, err := db.ExtractHashes(hashValues)
+	if err != nil {
+		return 0, err
+	}
+	//fmt.Printf("Fingerprints: %+v\n", fingerPrints)
+	//fmt.Println("\nsong comparison:")
+	matchingSong := findMatchingSong(fingerPrints, genHashes)
+	return matchingSong, nil
+}
+
+// takes a seconds amount and computes how many windows will be needed when considering the hop size
+// in order to reach that amount of seconds
+func SecondsToWindows(seconds float64) int {
+	if seconds == 0 {
+		return 0
+	}
+	secondsPerHop := float64(hopSize) / samplingRate
+	//fmt.Println("Seconds per Hop: ", secondsPerHop)
+	return int(math.Ceil(seconds / secondsPerHop))
 }
 
 // will decrease the sample rate by factor
@@ -224,7 +315,7 @@ func findMatchingSong(fingerPrints []Fingerprint, recordingHashes []GeneratedHas
 			}
 		}
 	}
-	fmt.Println(timedMatches)
+	//fmt.Println(timedMatches)
 	return matchingSongId
 }
 
