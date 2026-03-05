@@ -189,6 +189,37 @@ func generateHashes(peaks [][]bool, secondsOffset float64, secondsThreshold floa
 	return hashes
 }
 
+func findMatchingSong(fingerPrints []Fingerprint, recordingHashes []GeneratedHash) uint32 {
+	type deltaKey struct {
+		song_id uint32
+		dt      int
+	}
+
+	//TODO maybe prealocate space
+	timedMatches := make(map[deltaKey]int)
+
+	var max int
+	var matchingSongId uint32
+	for _, hash := range recordingHashes {
+		for _, fingerPrint := range fingerPrints {
+			if hash.Hash == fingerPrint.Hash {
+				key := deltaKey{
+					song_id: fingerPrint.SongId,
+					dt:      int(fingerPrint.AnchorTime) - int(hash.AnchorTime),
+				}
+				timedMatches[key]++
+				cur := timedMatches[key]
+				if cur > max {
+					max = cur
+					matchingSongId = key.song_id
+				}
+			}
+		}
+	}
+	fmt.Println(timedMatches)
+	return matchingSongId
+}
+
 func maxTimeBeteenNeighbourPeaks(peaks [][]bool) int {
 	max := 0
 	for window := 0; window < len(peaks); window++ {
