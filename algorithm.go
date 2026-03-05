@@ -64,6 +64,7 @@ func getMean(frequencyMatrix [][]float64) float64 {
 
 // find the most prominent frequencies through a 2d filter which will find the
 // frequencies with the highest magnitude in a neighbourhood grid specified by xDim and yDim and only keep those
+// TODO maybe store index where peak is instead of true false grid
 func extractPeaks(frequencyMatrix [][]float64, xDim, yDim int, threshhold float64) [][]bool {
 	if xDim == 0 || yDim == 0 {
 		log.Fatal("xDim and yDim have to be odd to center grid around point")
@@ -194,9 +195,9 @@ func findMatchingSong(fingerPrints []Fingerprint, recordingHashes []GeneratedHas
 		song_id uint32
 		dt      int64
 	}
-	//TODO maybe prealocate space
-	timedMatches := make(map[deltaKey]int)
-	fingerPrintsMap := make(map[uint32][]Fingerprint)
+
+	timedMatches := make(map[deltaKey]int, len(recordingHashes))
+	fingerPrintsMap := make(map[uint32][]Fingerprint, len(fingerPrints))
 
 	for _, fingerPrint := range fingerPrints {
 		fingerPrintsMap[fingerPrint.Hash] = append(fingerPrintsMap[fingerPrint.Hash], fingerPrint)
@@ -210,6 +211,7 @@ func findMatchingSong(fingerPrints []Fingerprint, recordingHashes []GeneratedHas
 			continue
 		}
 		for _, fingerPrint := range matches {
+			//TODO add binning
 			key := deltaKey{
 				song_id: fingerPrint.SongId,
 				dt:      int64(fingerPrint.AnchorTime) - int64(hash.AnchorTime),
