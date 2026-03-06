@@ -3,11 +3,15 @@ package main
 import (
 	"fmt"
 	"log"
+	"os"
 
 	"github.com/joho/godotenv"
 )
 
 func main() {
+	if len(os.Args) < 3 {
+		log.Fatal("not enough arguments")
+	}
 	if err := godotenv.Load(); err != nil {
 		log.Fatal(err)
 	}
@@ -18,13 +22,16 @@ func main() {
 	}
 	defer db.CloseDBConnection()
 
-	file := "filtered.wav"
+	//file := "audioFiles/[Spectrogram] Aphex Twin ⧸ ΔMi−1 = −∂Σn=1NDi[n][Σj∈C{i}Fji[n − 1] + Fexti[[n−1]].wav"
+	//file := "audioFiles/Pink Floyd - Money (Official Music Video).wav"
+	file := os.Args[1]
+
 	genHashes, err := ExtractHashesFromFile(file)
 	if err != nil {
 		log.Fatal(err)
 	}
 
-	store := false
+	store := os.Args[2] == "1"
 
 	if store {
 		if err := db.StoreHashes(genHashes, file); err != nil {

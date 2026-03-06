@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
+	"path/filepath"
 )
 
 type WavHeader struct {
@@ -32,13 +33,12 @@ type WAV struct {
 type IncorrectWavFormat struct{ message string }
 
 func WavToSamples(file string) (*WAV, error) {
-	inPath := "./audioFiles/" + file
-	outPath := "./audioFiles/output.wav"
+	outPath := "./audioFiles/downsampledWAVs/" + filepath.Base(file)
 
 	cmd := exec.Command(
 		"ffmpeg",
 		"-y",
-		"-i", inPath,
+		"-i", file,
 		"-ac", "1",
 		"-ar", "11025",
 		"-c:a", "pcm_s16le",

@@ -36,21 +36,17 @@ func ExtractHashesFromFile(file string) ([]GeneratedHash, error) {
 
 func SamplesToHashes(samples []float64) ([]GeneratedHash, error) {
 	spectogram := generateSpectogram(samples, windowSize, hopSize)
-	/*
-		err := spectogramImage(spectogram)
-		if err != nil {
-			return nil, err
-		}
-	*/
+	err := spectogramImage(spectogram)
+	if err != nil {
+		return nil, err
+	}
 
 	//TODO don't hard code the window and threshold
 	peaks := extractPeaks(spectogram, 21, 21, getMean(spectogram))
-	/*
-		err = displayPeaks(peaks)
-		if err != nil {
-			return nil, err
-		}
-	*/
+	err = displayPeaks(peaks)
+	if err != nil {
+		return nil, err
+	}
 
 	//fmt.Println("max distance until next peak", maxTimeBeteenNeighbourPeaks(peaks))
 	//fmt.Println("averagae distance until next peak", averageTimeBeteenNeighbourPeaks(peaks))
@@ -296,6 +292,7 @@ func findMatchingSong(fingerPrints []Fingerprint, recordingHashes []GeneratedHas
 
 	var max int
 	var matchingSongId uint32
+	var hits int
 	for _, hash := range recordingHashes {
 		matches, ok := fingerPrintsMap[hash.Hash]
 		if !ok {
@@ -307,6 +304,7 @@ func findMatchingSong(fingerPrints []Fingerprint, recordingHashes []GeneratedHas
 				song_id: fingerPrint.SongId,
 				dt:      int64(fingerPrint.AnchorTime) - int64(hash.AnchorTime),
 			}
+			hits++
 			timedMatches[key]++
 			cur := timedMatches[key]
 			if cur > max {
@@ -316,6 +314,7 @@ func findMatchingSong(fingerPrints []Fingerprint, recordingHashes []GeneratedHas
 		}
 	}
 	//fmt.Println(timedMatches)
+	fmt.Println("hits:", hits)
 	return matchingSongId
 }
 
