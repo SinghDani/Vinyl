@@ -26,23 +26,27 @@ func main() {
 	//file := "audioFiles/Pink Floyd - Money (Official Music Video).wav"
 	file := os.Args[1]
 
-	genHashes, err := ExtractHashesFromFile(file)
-	if err != nil {
-		log.Fatal(err)
-	}
+	if os.Args[2] == "2" {
 
-	store := os.Args[2] == "1"
-
-	if store {
-		if err := db.StoreHashes(genHashes, file); err != nil {
-			log.Fatal(err)
-		}
 	} else {
-		matchingSong, err := IdentifyRecording(db, genHashes)
+		genHashes, err := ExtractHashesFromFile(file)
 		if err != nil {
 			log.Fatal(err)
 		}
-		fmt.Println("Matching song:", matchingSong)
+
+		store := os.Args[2] == "1"
+
+		if store {
+			if err := db.StoreHashes(genHashes, file); err != nil {
+				log.Fatal(err)
+			}
+		} else {
+			matchingSong, err := IdentifyRecording(db, genHashes)
+			if err != nil {
+				log.Fatal(err)
+			}
+			fmt.Println("Matching song:", matchingSong)
+		}
 	}
 }
 func printArray[T any](samples [][]T) {
