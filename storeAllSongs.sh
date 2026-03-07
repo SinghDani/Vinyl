@@ -4,7 +4,7 @@ shopt -s nullglob
 go build -o fingerprinting
 for file in audioFiles/*.wav; do
     echo "$file"
-    ./fingerprinting "$file" 1
+    ./fingerprinting 1 "$file"
 done
 
 rm fingerprinting
