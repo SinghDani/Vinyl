@@ -52,6 +52,13 @@ func (db *DBConnection) RemoveSong(songname string) error {
 	return err
 }
 
+func (db *DBConnection) GetSong(songId uint32) (string, error) {
+	row := db.db.QueryRow("SELECT name FROM songs WHERE id = $1", int32(songId))
+	var song string
+	err := row.Scan(&song)
+	return song, err
+}
+
 func (db *DBConnection) StoreHashes(hashes []GeneratedHash, songname string) error {
 	if len(hashes) == 0 {
 		return errors.New("no hashes to store")
