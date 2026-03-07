@@ -10,7 +10,7 @@ import (
 )
 
 func main() {
-	if len(os.Args) < 3 {
+	if len(os.Args) < 2 {
 		log.Fatal("not enough arguments")
 	}
 	if err := godotenv.Load(); err != nil {
@@ -23,10 +23,13 @@ func main() {
 	}
 	defer db.CloseDBConnection()
 
-	file := os.Args[1]
-	store := os.Args[2] == "1"
+	store := os.Args[1] == "1"
 
 	if store {
+		if len(os.Args) < 3 {
+			log.Fatal("not enough arguments")
+		}
+		file := os.Args[2]
 		genHashes, err := ExtractHashesFromFile(file)
 		if err != nil {
 			log.Fatal(err)
@@ -36,9 +39,12 @@ func main() {
 			log.Fatal(err)
 		}
 	} else {
-		if err := recordAudio(file, 10); err != nil {
+		file := "recording.wav"
+		if err := recordAudio(file, 2); err != nil {
 			log.Fatal(err)
 		}
+		defer os.Remove(file)
+
 		genHashes, err := ExtractHashesFromFile(file)
 		if err != nil {
 			log.Fatal(err)
