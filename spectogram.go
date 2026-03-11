@@ -46,7 +46,8 @@ func generateSpectogram(samples []float64, windowSize, hopSize int) [][]float64 
 		freqMatrix[i] = make([]float64, windowSize/2)
 		for j := 0; j < windowSize/2; j++ {
 			//convert the complex values to the float64 magnitudes of the frequencies
-			freqMatrix[i][j] = cmplx.Abs(fftResult[j])
+			freqMatrix[i][j] = math.Log1p(cmplx.Abs(fftResult[j]))
+			//freqMatrix[i][j] = cmplx.Abs(fftResult[j])
 		}
 	}
 	return freqMatrix
