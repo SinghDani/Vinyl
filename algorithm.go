@@ -25,6 +25,16 @@ type GeneratedHash struct {
 	AnchorTime uint32
 }
 
+type deltaKey struct {
+	song_id uint32
+	dt      int64
+}
+
+type MatchingSong struct {
+	songId     uint32
+	confidence float64
+}
+
 func ExtractHashesFromFile(file string) ([]GeneratedHash, error) {
 	wavData, err := WavToSamples(file)
 	if err != nil {
@@ -36,17 +46,23 @@ func ExtractHashesFromFile(file string) ([]GeneratedHash, error) {
 
 func SamplesToHashes(samples []float64) ([]GeneratedHash, error) {
 	spectogram := generateSpectogram(samples, windowSize, hopSize)
-	err := spectogramImage(spectogram)
-	if err != nil {
-		return nil, err
-	}
+	/*
+		err := spectogramImage(spectogram)
+		if err != nil {
+			return nil, err
+		}
+	*/
 
 	//TODO don't hard code the window and threshold
-	peaks := extractPeaks(spectogram, 21, 21, getMean(spectogram))
-	err = displayPeaks(peaks)
-	if err != nil {
-		return nil, err
-	}
+	peaks := extractPeaks(spectogram, 9, 9, getMeanArr(spectogram)) //maybe multiply mean by some factor like 1.5
+	//peaks := extractPeaksBands(spectogram)
+
+	/*
+		err = displayPeaks(peaks)
+		if err != nil {
+			return nil, err
+		}
+	*/
 
 	//fmt.Println("max distance until next peak", maxTimeBeteenNeighbourPeaks(peaks))
 	//fmt.Println("averagae distance until next peak", averageTimeBeteenNeighbourPeaks(peaks))
@@ -70,7 +86,7 @@ func SamplesToHashes(samples []float64) ([]GeneratedHash, error) {
 	*/
 
 	//TODO change the thresholds and targetzone bounds
-	hashes := generateHashes(peaks, 0, 10, 1, 1, 100)
+	hashes := generateHashes(peaks, 0.05, 2, 100, 100, 5) //maybe max out frequencies
 	//fmt.Printf("Generated Hashes: %+v\n", hashes)
 
 	return hashes, nil
@@ -146,13 +162,84 @@ func getMean(frequencyMatrix [][]float64) float64 {
 			}
 		}
 	}
+	if count == 0 {
+		return 0
+	}
 	return sum / count
+}
+
+func getMeanArr(frequencyMatrix [][]float64) []float64 {
+	numFrequencyBins := len(frequencyMatrix[0])
+	means := make([]float64, len(frequencyMatrix))
+	for i := 0; i < len(frequencyMatrix); i++ {
+		count := 0.0
+		sum := 0.0
+		for j := 0; j < numFrequencyBins; j++ {
+			if frequencyMatrix[i][j] != 0 {
+				count++
+				sum += frequencyMatrix[i][j]
+			}
+		}
+		if count == 0 {
+			continue
+		}
+		means[i] = sum / count
+	}
+	return means
+}
+
+func extractPeaksBands(frequencyMatrix [][]float64) [][]bool {
+	type band struct {
+		min int
+		max int
+	}
+	type peak struct {
+		magnitude float64
+		index     int
+	}
+	bands := []band{
+		{0, 10}, {10, 20}, {20, 40}, {40, 80}, {80, 160}, {160, 512},
+	}
+	peaks := make([][]bool, len(frequencyMatrix))
+	numFrequencyBins := len(frequencyMatrix[0])
+
+	var count int
+	for windowIndex, window := range frequencyMatrix {
+		peaks[windowIndex] = make([]bool, numFrequencyBins)
+		curPeaks := make([]peak, 6)
+		for bandIndex, band := range bands {
+			var maxMag float64
+			var peakIndex int
+			for bin := band.min; bin < band.max; bin++ {
+				curFreq := window[bin]
+				if curFreq > maxMag {
+					maxMag = curFreq
+					peakIndex = bin
+				}
+			}
+			curPeaks[bandIndex] = peak{maxMag, peakIndex}
+		}
+		var sum float64
+		for _, peak := range curPeaks {
+			sum += peak.magnitude
+		}
+		avg := sum / 6
+		for _, peak := range curPeaks {
+			if peak.magnitude >= avg && peak.magnitude != 0 {
+				count++
+				peaks[windowIndex][peak.index] = true
+			}
+		}
+	}
+
+	fmt.Println("peak amount", count)
+	return peaks
 }
 
 // find the most prominent frequencies through a 2d filter which will find the
 // frequencies with the highest magnitude in a neighbourhood grid specified by xDim and yDim and only keep those
 // TODO maybe store index where peak is instead of true false grid
-func extractPeaks(frequencyMatrix [][]float64, xDim, yDim int, threshhold float64) [][]bool {
+func extractPeaks(frequencyMatrix [][]float64, xDim, yDim int, threshhold []float64) [][]bool {
 	if xDim == 0 || yDim == 0 {
 		log.Fatal("xDim and yDim have to be odd to center grid around point")
 	}
@@ -166,16 +253,16 @@ func extractPeaks(frequencyMatrix [][]float64, xDim, yDim int, threshhold float6
 
 	for window := 0; window < numWindows; window++ {
 		peaks[window] = make([]bool, numFrequencyBins)
-		for bin := 0; bin < numFrequencyBins; bin++ {
+		for bin := 25; bin < numFrequencyBins; bin++ {
 			isPeak := true
 			curMagnitude := frequencyMatrix[window][bin]
 			//exclude all points that have to low of a magnitude or are 0
-			if curMagnitude < threshhold || curMagnitude == 0 {
+			if curMagnitude < threshhold[window] || curMagnitude == 0 {
 				continue
 			}
 
 			for i := max(0, window-yDim); i < min(numWindows, window+yDim+1); i++ {
-				for j := max(0, bin-xDim); j < min(numFrequencyBins, bin+xDim+1); j++ {
+				for j := max(25, bin-xDim); j < min(numFrequencyBins, bin+xDim+1); j++ {
 					//next 2 if statements needed for finding strict peaks in a neighbourhood
 					//and to avoid plateaus in which multiple neighbourhood points have the same magnitude
 					if i == window && j == bin {
@@ -239,7 +326,7 @@ func generateHashes(peaks [][]bool, secondsOffset float64, secondsThreshold floa
 	hashes := []GeneratedHash{}
 
 	for window := 0; window < numWindows; window++ {
-		for bin := 0; bin < numBins; bin++ {
+		for bin := 25; bin < numBins; bin++ {
 			if !peaks[window][bin] { // if anchor is not peak
 				continue
 			}
@@ -252,7 +339,7 @@ func generateHashes(peaks [][]bool, secondsOffset float64, secondsThreshold floa
 				if generatedHashes >= numPairsPerAnchor {
 					break
 				}
-				for curBin := max(0, bin-frequencyBinLowerBound); curBin < min(numBins, bin+frequencyBinUpperBound+1); curBin++ {
+				for curBin := max(25, bin-frequencyBinLowerBound); curBin < min(numBins, bin+frequencyBinUpperBound+1); curBin++ {
 					if generatedHashes >= numPairsPerAnchor {
 						break
 					}
@@ -278,44 +365,99 @@ func generateHashes(peaks [][]bool, secondsOffset float64, secondsThreshold floa
 }
 
 func findMatchingSong(fingerPrints []Fingerprint, recordingHashes []GeneratedHash) uint32 {
-	type deltaKey struct {
-		song_id uint32
-		dt      int64
-	}
+	timedMatches := make(map[deltaKey]int)
+	fingerPrintsMap := make(map[uint32][]Fingerprint)
 
-	timedMatches := make(map[deltaKey]int, len(recordingHashes))
-	fingerPrintsMap := make(map[uint32][]Fingerprint, len(fingerPrints))
+	dtBinSize := int64(max(SecondsToWindows(0.3), 1))
+	fmt.Println("DtBinSize: ", dtBinSize)
 
 	for _, fingerPrint := range fingerPrints {
 		fingerPrintsMap[fingerPrint.Hash] = append(fingerPrintsMap[fingerPrint.Hash], fingerPrint)
 	}
 
-	var max int
-	var matchingSongId uint32
-	var hits int
 	for _, hash := range recordingHashes {
 		matches, ok := fingerPrintsMap[hash.Hash]
 		if !ok {
 			continue
 		}
 		for _, fingerPrint := range matches {
-			//TODO add binning
+			rawDt := int64(fingerPrint.AnchorTime) - int64(hash.AnchorTime)
+			binnedDt := int64(math.Round(float64(rawDt) / float64(dtBinSize)))
 			key := deltaKey{
 				song_id: fingerPrint.SongId,
-				dt:      int64(fingerPrint.AnchorTime) - int64(hash.AnchorTime),
+				dt:      binnedDt,
 			}
-			hits++
 			timedMatches[key]++
-			cur := timedMatches[key]
-			if cur > max {
-				max = cur
-				matchingSongId = key.song_id
-			}
 		}
 	}
-	//fmt.Println(timedMatches)
-	fmt.Println("hits:", hits)
-	return matchingSongId
+
+	exportAllHistogramsToCSV(timedMatches, "all_histograms.csv")
+
+	songBestScores := make(map[uint32]int)
+	for key, count := range timedMatches {
+
+		/*
+			if count > songBestScores[key.song_id] {
+				songBestScores[key.song_id] = count
+			}
+		*/
+
+		clusterScore := count*2 +
+			timedMatches[deltaKey{key.song_id, key.dt - 1}] +
+			timedMatches[deltaKey{key.song_id, key.dt + 1}]
+
+		if clusterScore > songBestScores[key.song_id] {
+			songBestScores[key.song_id] = clusterScore
+		}
+
+	}
+
+	var topScore int
+	var secondScore int
+	var topSong uint32
+	var secondSong uint32
+
+	for songId, score := range songBestScores {
+		if score > topScore {
+			secondScore = topScore
+			secondSong = topSong
+			topScore = score
+			topSong = songId
+		} else if score > secondScore {
+			secondScore = score
+			secondSong = songId
+		}
+	}
+
+	if topScore == 0 {
+		fmt.Println("Result: No matches found in database.")
+		return 0
+	}
+
+	fmt.Printf("1st Place: Song %d (Score: %d)\n", topSong, topScore)
+	if secondScore > 0 {
+		fmt.Printf("2nd Place: Song %d (Score: %d)\n", secondSong, secondScore)
+		confidence := float64(topScore) / float64(secondScore)
+		fmt.Printf("Confidence Ratio: %.2f\n", confidence)
+
+		if confidence >= 1.5 && topScore >= 15 {
+			fmt.Println("Verdict: STRONG MATCH")
+		} else if confidence > 1.2 && topScore >= 10 {
+			fmt.Println("Verdict: WEAK MATCH")
+		} else {
+			fmt.Println("Verdict: UNRELIABLE (Likely False Positive)")
+		}
+	} else {
+		fmt.Println("2nd Place: None")
+		fmt.Println("Confidence Ratio: INFINITE (Only one song got hits)")
+		if topScore >= 10 {
+			fmt.Println("Verdict: STRONG MATCH")
+		} else {
+			fmt.Println("Verdict: WEAK MATCH (Not enough data points)")
+		}
+	}
+
+	return topSong
 }
 
 func maxTimeBeteenNeighbourPeaks(peaks [][]bool) int {

@@ -11,7 +11,7 @@ func recordAudio(outPath string, seconds int) error {
 		"ffmpeg",
 		"-y",
 		"-f", "avfoundation",
-		"-i", ":0",
+		"-i", ":1",
 		"-t", strconv.Itoa(seconds),
 		"-ac", "2",
 		"-ar", "44100",
