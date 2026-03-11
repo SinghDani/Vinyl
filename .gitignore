@@ -27,3 +27,4 @@ go.work.sum
 *.test
 temp.go
 *.py
+*.csv
