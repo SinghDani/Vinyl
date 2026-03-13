@@ -57,10 +57,12 @@ func main() {
 			}
 			masterHashList = append(masterHashList, genHashes...)
 
-			if matchingSong, err = IdentifyRecording(db, masterHashList); err != nil {
+			matchingSong, err = IdentifyRecording(db, masterHashList)
+			if err != nil {
 				log.Fatal(err)
 			}
-			if match = EvalMatch(matchingSong); match {
+			match = EvalMatch(matchingSong)
+			if match {
 				break
 			}
 		}
