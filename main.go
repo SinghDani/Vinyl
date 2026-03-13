@@ -40,13 +40,10 @@ func main() {
 		}
 	} else {
 		file := "recording.wav"
-		if err := recordAudio(file, 15); err != nil {
+		if err := recordAudio(file, 5); err != nil {
 			log.Fatal(err)
 		}
 		defer os.Remove(file)
-
-		//file := "audioFiles/Nirvana - Smells Like Teen Spirit (Official Music Video).wav"
-		//file := "audioFiles/Pink Floyd - Money (Official Music Video).wav"
 
 		genHashes, err := ExtractHashesFromFile(file)
 		if err != nil {
@@ -57,12 +54,11 @@ func main() {
 		if err != nil {
 			log.Fatal(err)
 		}
-		songName, err := db.GetSong(matchingSong)
+		match, err := EvalMatch(matchingSong, db)
 		if err != nil {
 			log.Fatal(err)
 		}
-		fmt.Printf("Matching song: id: %d, name:%s", matchingSong, songName)
-		//TestPerfectMatch("audioFiles/The White Stripes - Seven Nation Army (Official Music Video).wav", db)
+		_ = match
 	}
 }
 
