@@ -36,16 +36,16 @@ type MatchingSong struct {
 	score      int
 }
 
-func ExtractHashesFromFile(file string) ([]GeneratedHash, error) {
+func ExtractHashesFromFile(file string, timeOffset int) ([]GeneratedHash, error) {
 	wavData, err := WavToSamples(file)
 	if err != nil {
 		return nil, err
 	}
 
-	return SamplesToHashes(wavData.samples)
+	return SamplesToHashes(wavData.samples, timeOffset)
 }
 
-func SamplesToHashes(samples []float64) ([]GeneratedHash, error) {
+func SamplesToHashes(samples []float64, timeOffset int) ([]GeneratedHash, error) {
 	spectogram := generateSpectogram(samples, windowSize, hopSize)
 	/*
 		err := spectogramImage(spectogram)
@@ -87,7 +87,7 @@ func SamplesToHashes(samples []float64) ([]GeneratedHash, error) {
 	*/
 
 	//TODO change the thresholds and targetzone bounds
-	hashes := generateHashes(peaks, 0.05, 2, 100, 100, 5) //maybe max out frequencies
+	hashes := generateHashes(peaks, 0.05, 2, 100, 100, 5, timeOffset) //maybe max out frequencies
 	//fmt.Printf("Generated Hashes: %+v\n", hashes)
 
 	return hashes, nil
@@ -321,7 +321,7 @@ func displayPeaks(peaks [][]bool) error {
 }
 
 // TODO: optimise maybe by passing in also the amount peaks
-func generateHashes(peaks [][]bool, secondsOffset float64, secondsThreshold float64, frequencyBinUpperBound, frequencyBinLowerBound, numPairsPerAnchor int) []GeneratedHash {
+func generateHashes(peaks [][]bool, secondsOffset float64, secondsThreshold float64, frequencyBinUpperBound, frequencyBinLowerBound, numPairsPerAnchor, timeOffset int) []GeneratedHash {
 	numWindows := len(peaks)
 	numBins := len(peaks[0])
 	hashes := []GeneratedHash{}
@@ -353,7 +353,7 @@ func generateHashes(peaks [][]bool, secondsOffset float64, secondsThreshold floa
 					hash: anchor frequency	|	point frequency	|	delta time
 					*/
 					hash := (uint32(bin) << 23) | (uint32(curBin) << 14) | (uint32(curWindow - window))
-					anchorTime := uint32(window)
+					anchorTime := uint32(window + timeOffset)
 					//fmt.Printf("Hash(window, bin) between: (%d, %d) | (%d, %d)	:=	%.32b : data=%d\n", window, bin, curWindow, curBin, hash, data)
 
 					hashes = append(hashes, GeneratedHash{hash, anchorTime})
@@ -488,14 +488,15 @@ func EvalMatch(song MatchingSong) bool {
 
 func printVerdict(song MatchingSong, db *DBConnection) error {
 	if song.score == 0 {
-		fmt.Println("\nResult: No matches found in database.")
+		fmt.Println("Result: No matches found in database.")
 		return nil
 	}
 	songName, err := db.GetSong(song.songId)
 	if err != nil {
 		return err
 	}
-	fmt.Printf("\nMatching Song: Id: %d, Song: %s \nScore: %d | Confidence Ratio: %.2f | ", song.songId, songName, song.score, song.confidence)
+	fmt.Printf("Matching Song: Id: %d, Song: %s \nScore: %d)\n", song.songId, songName, song.score)
+	fmt.Printf("Confidence Ratio: %.2f\n", song.confidence)
 
 	if song.confidence >= 1.5 && song.score >= 30 {
 		fmt.Println("Verdict: STRONG MATCH")

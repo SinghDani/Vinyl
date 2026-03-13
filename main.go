@@ -30,7 +30,7 @@ func main() {
 			log.Fatal("not enough arguments")
 		}
 		file := os.Args[2]
-		genHashes, err := ExtractHashesFromFile(file)
+		genHashes, err := ExtractHashesFromFile(file, 0)
 		if err != nil {
 			log.Fatal(err)
 		}
@@ -40,25 +40,34 @@ func main() {
 		}
 	} else {
 		file := "recording.wav"
-		if err := recordAudio(file, 5); err != nil {
-			log.Fatal(err)
-		}
-		defer os.Remove(file)
+		recordingBatchTime := 5
+		var masterHashList []GeneratedHash
+		var matchingSong MatchingSong
+		var match bool
+		for i := range 8 {
+			os.Remove(file)
+			timeOffset := i * SecondsToWindows(float64(recordingBatchTime))
+			if err := recordAudio(file, recordingBatchTime); err != nil {
+				log.Fatal(err)
+			}
 
-		genHashes, err := ExtractHashesFromFile(file)
-		if err != nil {
-			log.Fatal(err)
-		}
+			genHashes, err := ExtractHashesFromFile(file, timeOffset)
+			if err != nil {
+				log.Fatal(err)
+			}
+			masterHashList = append(masterHashList, genHashes...)
 
-		matchingSong, err := IdentifyRecording(db, genHashes)
-		if err != nil {
-			log.Fatal(err)
+			if matchingSong, err = IdentifyRecording(db, masterHashList); err != nil {
+				log.Fatal(err)
+			}
+			if match = EvalMatch(matchingSong); match {
+				break
+			}
 		}
-		match := EvalMatch(matchingSong)
+		os.Remove(file)
 		if err := printVerdict(matchingSong, db); err != nil {
 			log.Fatal(err)
 		}
-		_ = match
 	}
 }
 
