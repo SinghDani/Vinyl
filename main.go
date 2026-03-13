@@ -1,7 +1,6 @@
 package main
 
 import (
-	"fmt"
 	"log"
 	"os"
 	"path/filepath"
@@ -71,19 +70,4 @@ func main() {
 			log.Fatal(err)
 		}
 	}
-}
-
-func printArray[T any](samples [][]T) {
-	for i := 0; i < len(samples); i++ {
-		fmt.Println(samples[i])
-	}
-	fmt.Println()
-}
-
-func amoundData(samples [][]float64) int {
-	result := 0
-	for _, window := range samples {
-		result += len(window)
-	}
-	return result
 }
