@@ -54,8 +54,8 @@ func main() {
 		if err != nil {
 			log.Fatal(err)
 		}
-		match, err := EvalMatch(matchingSong, db)
-		if err != nil {
+		match := EvalMatch(matchingSong)
+		if err := printVerdict(matchingSong, db); err != nil {
 			log.Fatal(err)
 		}
 		_ = match

@@ -473,27 +473,39 @@ func findMatchingSong(fingerPrints []Fingerprint, recordingHashes []GeneratedHas
 }
 
 // returns if we found a significant match or not
-func EvalMatch(song MatchingSong, db *DBConnection) (bool, error) {
+func EvalMatch(song MatchingSong) bool {
 	if song.score == 0 {
-		fmt.Println("Result: No matches found in database.")
-		return false, nil
+		return false
+	}
+	if song.confidence >= 1.5 && song.score >= 30 {
+		return true
+	} else if song.confidence > 1.2 && song.score >= 20 {
+		return false
+	} else {
+		return false
+	}
+}
+
+func printVerdict(song MatchingSong, db *DBConnection) error {
+	if song.score == 0 {
+		fmt.Println("\nResult: No matches found in database.")
+		return nil
 	}
 	songName, err := db.GetSong(song.songId)
 	if err != nil {
-		return false, err
+		return err
 	}
-	fmt.Printf("Matching Song: Id: %d, Song: %s (Score: %d)\n", song.songId, songName, song.score)
-	fmt.Printf("Confidence Ratio: %.2f\n", song.confidence)
+	fmt.Printf("\nMatching Song: Id: %d, Song: %s \nScore: %d | Confidence Ratio: %.2f | ", song.songId, songName, song.score, song.confidence)
 
 	if song.confidence >= 1.5 && song.score >= 30 {
 		fmt.Println("Verdict: STRONG MATCH")
-		return true, nil
+		return nil
 	} else if song.confidence > 1.2 && song.score >= 20 {
 		fmt.Println("Verdict: WEAK MATCH")
-		return false, nil
+		return nil
 	} else {
 		fmt.Println("Verdict: UNRELIABLE (Likely False Positive)")
-		return false, nil
+		return nil
 	}
 }
 
