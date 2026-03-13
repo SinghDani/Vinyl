@@ -40,18 +40,18 @@ func main() {
 		}
 	} else {
 		file := "recording.wav"
-		recordingBatchTime := 5
+		recordingBatchTime := 5 //records in batches of 5 sec
 		var masterHashList []GeneratedHash
 		var matchingSong MatchingSong
 		var match bool
-		for i := range 8 {
+		for i := range 8 { //record for max of 40 sec
 			os.Remove(file)
 			timeOffset := i * SecondsToWindows(float64(recordingBatchTime))
 			if err := recordAudio(file, recordingBatchTime); err != nil {
 				log.Fatal(err)
 			}
 
-			genHashes, err := ExtractHashesFromFile(file, timeOffset)
+			genHashes, err := ExtractHashesFromFile(file, timeOffset) //shift current anchor points by 0, 5, 10, ... sec
 			if err != nil {
 				log.Fatal(err)
 			}

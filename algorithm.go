@@ -56,7 +56,6 @@ func SamplesToHashes(samples []float64, timeOffset int) ([]GeneratedHash, error)
 
 	//TODO don't hard code the window and threshold
 	peaks := extractPeaks(spectogram, 9, 9, getMeanArr(spectogram)) //maybe multiply mean by some factor like 1.5
-	//peaks := extractPeaksBands(spectogram)
 
 	/*
 		err = displayPeaks(peaks)
@@ -65,34 +64,12 @@ func SamplesToHashes(samples []float64, timeOffset int) ([]GeneratedHash, error)
 		}
 	*/
 
-	//fmt.Println("max distance until next peak", maxTimeBeteenNeighbourPeaks(peaks))
-	//fmt.Println("averagae distance until next peak", averageTimeBeteenNeighbourPeaks(peaks))
-
-	/*
-		samples2 := [][]float64{
-			{1., 5., 0., 9., 7, 1, 2, 3},
-			{7., 3., 1., 4., 0., 4, 5, 0},
-			{2., 3., 5., 4., 0., 2, 4, 3},
-			{4., 9., 1., 8., 10., 1, 3, 9},
-			{1, 2, 3, 4, 5, 7, 8, 5},
-			{2., 7., 5., 4., 0., 0, 0, 1},
-			{7., 3., 1., 6., 0., 1, 1, 1},
-		}
-
-		printArray(samples2)
-		peaks = extractPeaks(samples2, 3, 3, 0)
-		printArray(peaks)
-		seconds := 0.
-		fmt.Printf("%f seconds to window: %d\n", seconds, SecondsToWindows(seconds))
-	*/
-
 	//TODO change the thresholds and targetzone bounds
 	hashes := generateHashes(peaks, 0.05, 2, 100, 100, 5, timeOffset) //maybe max out frequencies
-	//fmt.Printf("Generated Hashes: %+v\n", hashes)
-
 	return hashes, nil
 }
 
+// will compare recordings hashes to the ones in the db to find the matching song
 func IdentifyRecording(db *DBConnection, genHashes []GeneratedHash) (MatchingSong, error) {
 	hashValues := make([]uint32, len(genHashes))
 	for i, hash := range genHashes {
@@ -169,6 +146,7 @@ func getMean(frequencyMatrix [][]float64) float64 {
 	return sum / count
 }
 
+// get the mean of each row
 func getMeanArr(frequencyMatrix [][]float64) []float64 {
 	numFrequencyBins := len(frequencyMatrix[0])
 	means := make([]float64, len(frequencyMatrix))
@@ -320,6 +298,8 @@ func displayPeaks(peaks [][]bool) error {
 	return png.Encode(f, img)
 }
 
+// will combine anchor points (peaks) with other peaks from a target zones to create hashes
+// by combining them as specified in the comments in the following function
 // TODO: optimise maybe by passing in also the amount peaks
 func generateHashes(peaks [][]bool, secondsOffset float64, secondsThreshold float64, frequencyBinUpperBound, frequencyBinLowerBound, numPairsPerAnchor, timeOffset int) []GeneratedHash {
 	numWindows := len(peaks)
@@ -365,17 +345,21 @@ func generateHashes(peaks [][]bool, secondsOffset float64, secondsThreshold floa
 	return hashes
 }
 
+// identifies the best matching song by building a time-delta histogram between recording hashes
+// and db fingerprints for every song that was matched
+// returning the top matching song with a confidence ratio
 func findMatchingSong(fingerPrints []Fingerprint, recordingHashes []GeneratedHash) MatchingSong {
 	timedMatches := make(map[deltaKey]int)
 	fingerPrintsMap := make(map[uint32][]Fingerprint)
 
 	dtBinSize := int64(max(SecondsToWindows(0.3), 1))
-	fmt.Println("DtBinSize: ", dtBinSize)
+	//fmt.Println("DtBinSize: ", dtBinSize)
 
 	for _, fingerPrint := range fingerPrints {
 		fingerPrintsMap[fingerPrint.Hash] = append(fingerPrintsMap[fingerPrint.Hash], fingerPrint)
 	}
 
+	//create time-delta histogram
 	for _, hash := range recordingHashes {
 		matches, ok := fingerPrintsMap[hash.Hash]
 		if !ok {
@@ -395,6 +379,8 @@ func findMatchingSong(fingerPrints []Fingerprint, recordingHashes []GeneratedHas
 	exportAllHistogramsToCSV(timedMatches, "all_histograms.csv")
 
 	songBestScores := make(map[uint32]int)
+
+	//use binning to combine neighbouring histogram bars to improve robustness
 	for key, count := range timedMatches {
 
 		/*
@@ -413,6 +399,7 @@ func findMatchingSong(fingerPrints []Fingerprint, recordingHashes []GeneratedHas
 
 	}
 
+	//compute confidence ratio for the classification
 	var topScore int
 	var secondScore int
 	var topSong uint32
@@ -508,61 +495,4 @@ func printVerdict(song MatchingSong, db *DBConnection) error {
 		fmt.Println("Verdict: UNRELIABLE (Likely False Positive)")
 		return nil
 	}
-}
-
-func maxTimeBeteenNeighbourPeaks(peaks [][]bool) int {
-	max := 0
-	for window := 0; window < len(peaks); window++ {
-		found := false
-		for bin := 0; bin < len(peaks[window]); bin++ {
-			if peaks[window][bin] {
-				for i := window + 1; i < len(peaks); i++ {
-					for j := 0; j < len(peaks[i]); j++ {
-						if peaks[i][j] {
-							found = true
-							if max < i-window {
-								max = i - window
-							}
-							break
-						}
-					}
-					if found {
-						break
-					}
-				}
-				break
-			}
-		}
-	}
-	return max
-}
-
-func averageTimeBeteenNeighbourPeaks(peaks [][]bool) float64 {
-	sum := 0.0
-	count := 0.0
-	for window := 0; window < len(peaks); window++ {
-		found := false
-		for bin := 0; bin < len(peaks[window]); bin++ {
-			if peaks[window][bin] {
-				for i := window + 1; i < len(peaks); i++ {
-					for j := 0; j < len(peaks[i]); j++ {
-						if peaks[i][j] {
-							found = true
-							sum += float64((i - window))
-							count++
-							break
-						}
-					}
-					if found {
-						break
-					}
-				}
-				break
-			}
-		}
-	}
-	if count == 0 {
-		return 0
-	}
-	return sum / count
 }
