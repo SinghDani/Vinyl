@@ -33,6 +33,7 @@ type deltaKey struct {
 type MatchingSong struct {
 	songId     uint32
 	confidence float64
+	score      int
 }
 
 func ExtractHashesFromFile(file string) ([]GeneratedHash, error) {
@@ -92,14 +93,14 @@ func SamplesToHashes(samples []float64) ([]GeneratedHash, error) {
 	return hashes, nil
 }
 
-func IdentifyRecording(db *DBConnection, genHashes []GeneratedHash) (uint32, error) {
+func IdentifyRecording(db *DBConnection, genHashes []GeneratedHash) (MatchingSong, error) {
 	hashValues := make([]uint32, len(genHashes))
 	for i, hash := range genHashes {
 		hashValues[i] = hash.Hash
 	}
 	fingerPrints, err := db.ExtractHashes(hashValues)
 	if err != nil {
-		return 0, err
+		return MatchingSong{}, err
 	}
 	//fmt.Printf("Fingerprints: %+v\n", fingerPrints)
 	//fmt.Println("\nsong comparison:")
@@ -364,7 +365,7 @@ func generateHashes(peaks [][]bool, secondsOffset float64, secondsThreshold floa
 	return hashes
 }
 
-func findMatchingSong(fingerPrints []Fingerprint, recordingHashes []GeneratedHash) uint32 {
+func findMatchingSong(fingerPrints []Fingerprint, recordingHashes []GeneratedHash) MatchingSong {
 	timedMatches := make(map[deltaKey]int)
 	fingerPrintsMap := make(map[uint32][]Fingerprint)
 
@@ -429,35 +430,71 @@ func findMatchingSong(fingerPrints []Fingerprint, recordingHashes []GeneratedHas
 		}
 	}
 
+	_ = secondSong
+	/*
+		if topScore == 0 {
+			fmt.Println("Result: No matches found in database.")
+			return 0
+		}
+
+		fmt.Printf("1st Place: Song %d (Score: %d)\n", topSong, topScore)
+		if secondScore > 0 {
+			fmt.Printf("2nd Place: Song %d (Score: %d)\n", secondSong, secondScore)
+			confidence := float64(topScore) / float64(secondScore)
+			fmt.Printf("Confidence Ratio: %.2f\n", confidence)
+
+			if confidence >= 1.5 && topScore >= 15 {
+				fmt.Println("Verdict: STRONG MATCH")
+			} else if confidence > 1.2 && topScore >= 10 {
+				fmt.Println("Verdict: WEAK MATCH")
+			} else {
+				fmt.Println("Verdict: UNRELIABLE (Likely False Positive)")
+			}
+		} else {
+			fmt.Println("2nd Place: None")
+			fmt.Println("Confidence Ratio: INFINITE (Only one song got hits)")
+			if topScore >= 10 {
+				fmt.Println("Verdict: STRONG MATCH")
+			} else {
+				fmt.Println("Verdict: WEAK MATCH (Not enough data points)")
+			}
+		}
+	*/
 	if topScore == 0 {
-		fmt.Println("Result: No matches found in database.")
-		return 0
+		return MatchingSong{}
 	}
-
-	fmt.Printf("1st Place: Song %d (Score: %d)\n", topSong, topScore)
-	if secondScore > 0 {
-		fmt.Printf("2nd Place: Song %d (Score: %d)\n", secondSong, secondScore)
-		confidence := float64(topScore) / float64(secondScore)
-		fmt.Printf("Confidence Ratio: %.2f\n", confidence)
-
-		if confidence >= 1.5 && topScore >= 15 {
-			fmt.Println("Verdict: STRONG MATCH")
-		} else if confidence > 1.2 && topScore >= 10 {
-			fmt.Println("Verdict: WEAK MATCH")
-		} else {
-			fmt.Println("Verdict: UNRELIABLE (Likely False Positive)")
-		}
+	var confidence float64
+	if secondScore == 0 {
+		confidence = 999
 	} else {
-		fmt.Println("2nd Place: None")
-		fmt.Println("Confidence Ratio: INFINITE (Only one song got hits)")
-		if topScore >= 10 {
-			fmt.Println("Verdict: STRONG MATCH")
-		} else {
-			fmt.Println("Verdict: WEAK MATCH (Not enough data points)")
-		}
+		confidence = float64(topScore) / float64(secondScore)
 	}
+	return MatchingSong{songId: topSong, confidence: confidence, score: topScore}
+}
 
-	return topSong
+// returns if we found a significant match or not
+func EvalMatch(song MatchingSong, db *DBConnection) (bool, error) {
+	if song.score == 0 {
+		fmt.Println("Result: No matches found in database.")
+		return false, nil
+	}
+	songName, err := db.GetSong(song.songId)
+	if err != nil {
+		return false, err
+	}
+	fmt.Printf("Matching Song: Id: %d, Song: %s (Score: %d)\n", song.songId, songName, song.score)
+	fmt.Printf("Confidence Ratio: %.2f\n", song.confidence)
+
+	if song.confidence >= 1.5 && song.score >= 30 {
+		fmt.Println("Verdict: STRONG MATCH")
+		return true, nil
+	} else if song.confidence > 1.2 && song.score >= 20 {
+		fmt.Println("Verdict: WEAK MATCH")
+		return false, nil
+	} else {
+		fmt.Println("Verdict: UNRELIABLE (Likely False Positive)")
+		return false, nil
+	}
 }
 
 func maxTimeBeteenNeighbourPeaks(peaks [][]bool) int {
