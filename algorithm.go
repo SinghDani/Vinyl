@@ -482,7 +482,7 @@ func printVerdict(song MatchingSong, db *DBConnection) error {
 	if err != nil {
 		return err
 	}
-	fmt.Printf("Matching Song: Id: %d, Song: %s \nScore: %d)\n", song.songId, songName, song.score)
+	fmt.Printf("Matching Song: Id: %d, Song: %s \nScore: %d\n", song.songId, songName, song.score)
 	fmt.Printf("Confidence Ratio: %.2f\n", song.confidence)
 
 	if song.confidence >= 1.5 && song.score >= 30 {

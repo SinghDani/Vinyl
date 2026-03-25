@@ -38,35 +38,7 @@ func main() {
 			log.Fatal(err)
 		}
 	} else {
-		file := "recording.wav"
-		recordingBatchTime := 5 //records in batches of 5 sec
-		var masterHashList []GeneratedHash
-		var matchingSong MatchingSong
-		var match bool
-		for i := range 8 { //record for max of 40 sec
-			os.Remove(file)
-			timeOffset := i * SecondsToWindows(float64(recordingBatchTime))
-			if err := recordAudio(file, recordingBatchTime); err != nil {
-				log.Fatal(err)
-			}
-
-			genHashes, err := ExtractHashesFromFile(file, timeOffset) //shift current anchor points by 0, 5, 10, ... sec
-			if err != nil {
-				log.Fatal(err)
-			}
-			masterHashList = append(masterHashList, genHashes...)
-
-			matchingSong, err = IdentifyRecording(db, masterHashList)
-			if err != nil {
-				log.Fatal(err)
-			}
-			match = EvalMatch(matchingSong)
-			if match {
-				break
-			}
-		}
-		os.Remove(file)
-		if err := printVerdict(matchingSong, db); err != nil {
+		if err := recordAudio(db); err != nil {
 			log.Fatal(err)
 		}
 	}
