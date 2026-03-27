@@ -1,18 +1,13 @@
-package main
+package db
 
 import (
 	"database/sql"
 	"errors"
 	"os"
 
+	"github.com/SinghDani/audioRecognition/internal"
 	_ "github.com/jackc/pgx/v5/stdlib"
 )
-
-type Fingerprint struct {
-	Hash       uint32 // anchor freq | target freq | dt
-	SongId     uint32
-	AnchorTime uint32
-}
 
 type DBConnection struct {
 	db *sql.DB
@@ -59,7 +54,7 @@ func (db *DBConnection) GetSong(songId uint32) (string, error) {
 	return song, err
 }
 
-func (db *DBConnection) StoreHashes(hashes []GeneratedHash, songname string) error {
+func (db *DBConnection) StoreHashes(hashes []internal.GeneratedHash, songname string) error {
 	if len(hashes) == 0 {
 		return errors.New("no hashes to store")
 	}
@@ -91,7 +86,7 @@ func (db *DBConnection) StoreHashes(hashes []GeneratedHash, songname string) err
 	return tx.Commit()
 }
 
-func (db *DBConnection) ExtractHashes(hashes []uint32) ([]Fingerprint, error) {
+func (db *DBConnection) ExtractHashes(hashes []uint32) ([]internal.Fingerprint, error) {
 	if len(hashes) == 0 {
 		return nil, nil
 	}
@@ -100,7 +95,7 @@ func (db *DBConnection) ExtractHashes(hashes []uint32) ([]Fingerprint, error) {
 		intHashes[i] = int32(h)
 	}
 
-	var matches []Fingerprint
+	var matches []internal.Fingerprint
 	rows, err := db.db.Query("SELECT hash, song_id, anchor_time from fingerprints WHERE hash = ANY($1)", intHashes)
 	if err != nil {
 		return nil, err
@@ -114,7 +109,7 @@ func (db *DBConnection) ExtractHashes(hashes []uint32) ([]Fingerprint, error) {
 		if err := rows.Scan(&hash, &songId, &anchorTime); err != nil {
 			return nil, err
 		}
-		matches = append(matches, Fingerprint{Hash: uint32(hash), SongId: uint32(songId), AnchorTime: uint32(anchorTime)})
+		matches = append(matches, internal.Fingerprint{Hash: uint32(hash), SongId: uint32(songId), AnchorTime: uint32(anchorTime)})
 	}
 	if err := rows.Err(); err != nil {
 		return nil, err

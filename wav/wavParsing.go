@@ -1,4 +1,4 @@
-package main
+package wav
 
 import (
 	"encoding/binary"
@@ -26,8 +26,8 @@ type WavHeader struct {
 }
 
 type WAV struct {
-	header  *WavHeader
-	samples []float64
+	Header  *WavHeader
+	Samples []float64
 }
 
 type IncorrectWavFormat struct{ message string }

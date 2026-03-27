@@ -1,27 +1,31 @@
-package main
+package audio
 
 import (
 	"fmt"
 	"os"
 	"os/exec"
 	"strconv"
+
+	"github.com/SinghDani/audioRecognition/db"
+	"github.com/SinghDani/audioRecognition/fingerprint"
+	"github.com/SinghDani/audioRecognition/internal"
 )
 
-func recordAudio(db *DBConnection) error {
+func RecordAudio(db *db.DBConnection) error {
 	file := "recording.wav"
 	recordingBatchTime := 5 //records in batches of 5 sec
-	var masterHashList [][]GeneratedHash
-	var matchingSong MatchingSong
+	var masterHashList [][]internal.GeneratedHash
+	var matchingSong internal.MatchingSong
 	var match bool
 	for i := range 8 { //record for max of 40 sec
 		os.Remove(file)
-		timeOffset := i * SecondsToWindows(float64(recordingBatchTime))
+		timeOffset := i * fingerprint.SecondsToWindows(float64(recordingBatchTime))
 
 		cmd := exec.Command(
 			"ffmpeg",
 			"-y",
 			"-f", "avfoundation",
-			"-i", ":1",
+			"-i", ":default",
 			"-t", strconv.Itoa(recordingBatchTime),
 			"-ac", "2",
 			"-ar", "44100",
@@ -34,36 +38,36 @@ func recordAudio(db *DBConnection) error {
 			return err
 		}
 
-		genHashes, err := ExtractHashesFromFile(file, timeOffset) //shift current anchor points by 0, 5, 10, ... sec
+		genHashes, err := fingerprint.ExtractHashesFromFile(file, timeOffset) //shift current anchor points by 0, 5, 10, ... sec
 		if err != nil {
 			return err
 		}
 		masterHashList = append(masterHashList, genHashes)
 
 		batchWindow := 3 //only look at last 15 seconds
-		var hashBatch []GeneratedHash
+		var hashBatch []internal.GeneratedHash
 
 		start := max(0, len(masterHashList)-batchWindow)
 		for _, batch := range masterHashList[start:] {
 			hashBatch = append(hashBatch, batch...)
 		}
 
-		matchingSong, err = IdentifyRecording(db, hashBatch)
+		matchingSong, err = fingerprint.IdentifyRecording(db, hashBatch)
 		if err != nil {
 			return err
 		}
 
-		if err := printVerdict(matchingSong, db); err != nil {
+		if err := fingerprint.PrintVerdict(matchingSong, db); err != nil {
 			return err
 		}
 
-		match = EvalMatch(matchingSong)
+		match = fingerprint.EvalMatch(matchingSong)
 		if match {
 			break
 		}
 	}
 	os.Remove(file)
-	if err := printVerdict(matchingSong, db); err != nil {
+	if err := fingerprint.PrintVerdict(matchingSong, db); err != nil {
 		return err
 	}
 

@@ -1,4 +1,4 @@
-package main
+package fingerprint
 
 import (
 	"math/cmplx"

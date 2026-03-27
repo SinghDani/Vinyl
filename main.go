@@ -5,6 +5,9 @@ import (
 	"os"
 	"path/filepath"
 
+	"github.com/SinghDani/audioRecognition/audio"
+	"github.com/SinghDani/audioRecognition/db"
+	"github.com/SinghDani/audioRecognition/fingerprint"
 	"github.com/joho/godotenv"
 )
 
@@ -16,7 +19,7 @@ func main() {
 		log.Fatal(err)
 	}
 
-	db, err := NewDBConnection()
+	db, err := db.NewDBConnection()
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -29,7 +32,7 @@ func main() {
 			log.Fatal("not enough arguments")
 		}
 		file := os.Args[2]
-		genHashes, err := ExtractHashesFromFile(file, 0)
+		genHashes, err := fingerprint.ExtractHashesFromFile(file, 0)
 		if err != nil {
 			log.Fatal(err)
 		}
@@ -38,7 +41,7 @@ func main() {
 			log.Fatal(err)
 		}
 	} else {
-		if err := recordAudio(db); err != nil {
+		if err := audio.RecordAudio(db); err != nil {
 			log.Fatal(err)
 		}
 	}
