@@ -3,6 +3,8 @@ obj/
 audioFiles/
 .ropeproject/
 
+audioRec
+
 *.png
 
 go.work
