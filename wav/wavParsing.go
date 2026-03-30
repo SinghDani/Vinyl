@@ -33,6 +33,7 @@ type WAV struct {
 type IncorrectWavFormat struct{ message string }
 
 func WavToSamples(file string) (*WAV, error) {
+	//TODO clean up audioFiless and donwsample files, probably don't want to keep that
 	outPath := "./audioFiles/downsampledWAVs/" + filepath.Base(file)
 
 	cmd := exec.Command(
