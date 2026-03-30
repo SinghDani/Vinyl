@@ -8,6 +8,17 @@ services:
       DB_PORT: ${DB_PORT:-5432}
       DB_NAME: ${DB_NAME:-postgres}
       DB_SSLMODE: ${DB_SSLMODE:-disable}
+
+    #TODO: remove volume later
+    volumes:
+      - ./audioFiles:/app/audioFiles
+    #deploy:
+    #  resources:
+    #    limits:
+    #      cpus: "2.0"
+    #      memory: 1G
+    #    reservations:
+    #      memory: 128M
     depends_on:
       db:
         condition: service_healthy
@@ -16,7 +27,7 @@ services:
     image: postgres:17-alpine
     restart: always
     ports:
-      - 5432:5432
+      - 3000:5432
     environment:
       POSTGRES_USER: ${DB_USER:-postgres}
       POSTGRES_PASSWORD: ${DB_PASSWORD:-password}
@@ -26,3 +37,6 @@ services:
       interval: 5s
       timeout: 5s
       retries: 5
+      start_period: 5s
+    volumes:
+      - ./db/db.sql:/docker-entrypoint-initdb.d/db.sql
