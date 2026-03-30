@@ -3,6 +3,7 @@ package db
 import (
 	"database/sql"
 	"errors"
+	"fmt"
 	"os"
 
 	"github.com/SinghDani/audioRecognition/internal"
@@ -14,10 +15,14 @@ type DBConnection struct {
 }
 
 func NewDBConnection() (*DBConnection, error) {
-	connection := os.Getenv("CONNECTIONSTRING")
-	if connection == "" {
-		return nil, errors.New("connection string is empty")
-	}
+	connection := fmt.Sprintf("user=%s password=%s host=%s port=%s database=%s sslmode=%s",
+		os.Getenv("DB_USER"),
+		os.Getenv("DB_PASSWORD"),
+		os.Getenv("DB_HOST"),
+		os.Getenv("DB_PORT"),
+		os.Getenv("DB_NAME"),
+		os.Getenv("DB_SSLMODE"),
+	)
 
 	db, err := sql.Open("pgx", connection)
 	if err != nil {
