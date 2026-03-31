@@ -23,9 +23,9 @@ func main() {
 	}
 	defer db.CloseDBConnection()
 
-	store := os.Args[1] == "1"
+	action := os.Args[1]
 
-	if store {
+	if action == "store" {
 		if len(os.Args) < 3 {
 			log.Fatal("not enough arguments")
 		}
@@ -38,7 +38,7 @@ func main() {
 		if err := db.StoreHashes(genHashes, filepath.Base(file)); err != nil {
 			log.Fatal(err)
 		}
-	} else {
+	} else if action == "record" {
 		if err := audio.RecordAudio(db); err != nil {
 			log.Fatal(err)
 		}
