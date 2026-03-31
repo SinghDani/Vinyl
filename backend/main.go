@@ -15,7 +15,10 @@ func main() {
 	if len(os.Args) < 2 {
 		log.Fatal("not enough arguments")
 	}
-	_ = godotenv.Load()
+
+	if err := godotenv.Load("./.env"); err != nil {
+		_ = godotenv.Load("../.env")
+	}
 
 	db, err := db.NewDBConnection()
 	if err != nil {

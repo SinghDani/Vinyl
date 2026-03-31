@@ -1,6 +1,8 @@
 services:
   server:
-    build: .
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
     environment:
       DB_USER: ${DB_USER:-postgres}
       DB_PASSWORD: ${DB_PASSWORD:-password}
@@ -11,7 +13,7 @@ services:
 
     #TODO: remove volume later
     volumes:
-      - ./audioFiles:/app/audioFiles
+      - ./backend/audioFiles:/app/audioFiles
     #deploy:
     #  resources:
     #    limits:
@@ -39,4 +41,4 @@ services:
       retries: 5
       start_period: 5s
     volumes:
-      - ./db/db.sql:/docker-entrypoint-initdb.d/db.sql
+      - ./backend/db/db.sql:/docker-entrypoint-initdb.d/db.sql
