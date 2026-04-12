@@ -1,36 +1,42 @@
 package api
 
 import (
-	"encoding/json"
+	"log"
 	"net/http"
 
 	"github.com/SinghDani/audioRecognition/db"
+	"github.com/gorilla/websocket"
 )
 
 type Server struct {
-	Addr string
-	Db   *db.DBConnection
+	Addr       string
+	Db         *db.DBConnection
+	WsUpgrader websocket.Upgrader
 }
 
 func NewServer(Addr string, Db *db.DBConnection) *Server {
 	return &Server{
 		Addr: Addr,
 		Db:   Db,
+		//TODO change this for production
+		WsUpgrader: websocket.Upgrader{
+			CheckOrigin: func(r *http.Request) bool {
+				return true
+			},
+		},
 	}
 }
 
 func (s *Server) Run() {
 	mux := http.NewServeMux()
-	mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
-		defer r.Body.Close()
-		songs, err := s.Db.GetAllSongs()
-		if err != nil {
-			http.Error(w, err.Error(), http.StatusInternalServerError)
-			return
-		}
-		if err := json.NewEncoder(w).Encode(songs); err != nil {
-			http.Error(w, err.Error(), http.StatusInternalServerError)
-		}
-	})
-	http.ListenAndServe(":8080", mux)
+	s.registerRoutes(mux)
+
+	if err := http.ListenAndServe(s.Addr, mux); err != nil {
+		log.Fatal(err)
+	}
+}
+
+func (s *Server) registerRoutes(mux *http.ServeMux) {
+	mux.HandleFunc("/", s.home)
+	mux.HandleFunc("/recording", s.acceptRecording)
 }
