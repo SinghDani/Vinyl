@@ -5,7 +5,7 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/SinghDani/audioRecognition/audio"
+	"github.com/SinghDani/audioRecognition/api"
 	"github.com/SinghDani/audioRecognition/db"
 	"github.com/SinghDani/audioRecognition/fingerprint"
 	"github.com/joho/godotenv"
@@ -42,8 +42,12 @@ func main() {
 			log.Fatal(err)
 		}
 	} else if action == "record" {
-		if err := audio.RecordAudio(db); err != nil {
-			log.Fatal(err)
-		}
+		/*
+			if err := audio.RecordAudio(db); err != nil {
+				log.Fatal(err)
+			}
+		*/
+		server := api.NewServer(":3000", db)
+		server.Run()
 	}
 }
