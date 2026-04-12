@@ -59,6 +59,22 @@ func (db *DBConnection) GetSong(songId uint32) (string, error) {
 	return song, err
 }
 
+func (db *DBConnection) GetAllSongs() ([]string, error) {
+	rows, err := db.db.Query("SELECT name FROM songs")
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var songs []string
+	var entry string
+	for rows.Next() {
+		rows.Scan(&entry)
+		songs = append(songs, entry)
+	}
+	return songs, nil
+}
+
 func (db *DBConnection) StoreHashes(hashes []internal.GeneratedHash, songname string) error {
 	if len(hashes) == 0 {
 		return errors.New("no hashes to store")
