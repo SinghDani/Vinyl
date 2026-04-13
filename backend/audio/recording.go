@@ -16,7 +16,7 @@ func RecordAudio(db *db.DBConnection) error {
 	recordingBatchTime := 5 //records in batches of 5 sec
 	var masterHashList [][]internal.GeneratedHash
 	var matchingSong internal.MatchingSong
-	var match bool
+
 	for i := range 8 { //record for max of 40 sec
 		os.Remove(file)
 		timeOffset := i * fingerprint.SecondsToWindows(float64(recordingBatchTime))
@@ -57,19 +57,12 @@ func RecordAudio(db *db.DBConnection) error {
 			return err
 		}
 
-		if err := fingerprint.PrintVerdict(matchingSong, db); err != nil {
-			return err
-		}
-
-		match = fingerprint.EvalMatch(matchingSong)
-		if match {
+		fingerprint.PrintVerdict(matchingSong, db)
+		if fingerprint.EvalMatch(matchingSong) {
 			break
 		}
 	}
 	os.Remove(file)
-	if err := fingerprint.PrintVerdict(matchingSong, db); err != nil {
-		return err
-	}
-
+	fingerprint.PrintVerdict(matchingSong, db)
 	return nil
 }
