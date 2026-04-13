@@ -12,6 +12,7 @@ type GeneratedHash struct {
 }
 
 type MatchingSong struct {
+	SongName   string
 	Confidence float64
 	SongId     uint32
 	Score      int
