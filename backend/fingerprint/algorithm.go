@@ -18,7 +18,7 @@ import (
 // Todo make sure windowSize is not used anywhere!!!
 const (
 	PI           = math.Pi
-	samplingRate = 11025
+	SamplingRate = 11025
 	windowSize   = 1024
 	hopFactor    = 2
 	hopSize      = windowSize / hopFactor //how much to slide each window by
@@ -74,8 +74,7 @@ func IdentifyRecording(db *db.DBConnection, genHashes []internal.GeneratedHash) 
 	}
 	//fmt.Printf("Fingerprints: %+v\n", fingerPrints)
 	//fmt.Println("\nsong comparison:")
-	matchingSong := findMatchingSong(fingerPrints, genHashes)
-	return matchingSong, nil
+	return findMatchingSong(fingerPrints, genHashes, db)
 }
 
 // takes a seconds amount and computes how many windows will be needed when considering the hop size
@@ -84,7 +83,7 @@ func SecondsToWindows(seconds float64) int {
 	if seconds == 0 {
 		return 0
 	}
-	secondsPerHop := float64(hopSize) / samplingRate
+	secondsPerHop := float64(hopSize) / SamplingRate
 	//fmt.Println("Seconds per Hop: ", secondsPerHop)
 	return int(math.Ceil(seconds / secondsPerHop))
 }
@@ -341,7 +340,7 @@ func generateHashes(peaks [][]bool, secondsOffset float64, secondsThreshold floa
 // identifies the best matching song by building a time-delta histogram between recording hashes
 // and db fingerprints for every song that was matched
 // returning the top matching song with a confidence ratio
-func findMatchingSong(fingerPrints []internal.Fingerprint, recordingHashes []internal.GeneratedHash) internal.MatchingSong {
+func findMatchingSong(fingerPrints []internal.Fingerprint, recordingHashes []internal.GeneratedHash, db *db.DBConnection) (internal.MatchingSong, error) {
 	timedMatches := make(map[deltaKey]int)
 	fingerPrintsMap := make(map[uint32][]internal.Fingerprint)
 
@@ -441,7 +440,7 @@ func findMatchingSong(fingerPrints []internal.Fingerprint, recordingHashes []int
 		}
 	*/
 	if topScore == 0 {
-		return internal.MatchingSong{}
+		return internal.MatchingSong{}, nil
 	}
 	var confidence float64
 	if secondScore == 0 {
@@ -449,7 +448,11 @@ func findMatchingSong(fingerPrints []internal.Fingerprint, recordingHashes []int
 	} else {
 		confidence = float64(topScore) / float64(secondScore)
 	}
-	return internal.MatchingSong{SongId: topSong, Confidence: confidence, Score: topScore}
+	songname, err := db.GetSong(topSong)
+	if err != nil {
+		return internal.MatchingSong{}, err
+	}
+	return internal.MatchingSong{SongId: topSong, SongName: songname, Confidence: confidence, Score: topScore}, nil
 }
 
 // returns if we found a significant match or not
@@ -466,26 +469,32 @@ func EvalMatch(song internal.MatchingSong) bool {
 	}
 }
 
-func PrintVerdict(song internal.MatchingSong, db *db.DBConnection) error {
+func PrintVerdict(song internal.MatchingSong, db *db.DBConnection) {
 	if song.Score == 0 {
 		fmt.Println("Result: No matches found in database.")
-		return nil
+		return
 	}
-	songName, err := db.GetSong(song.SongId)
-	if err != nil {
-		return err
-	}
-	fmt.Printf("Matching Song: Id: %d, Song: %s \nScore: %d\n", song.SongId, songName, song.Score)
+	fmt.Printf("Matching Song: Id: %d, Song: %s \nScore: %d\n", song.SongId, song.SongName, song.Score)
 	fmt.Printf("Confidence Ratio: %.2f\n", song.Confidence)
 
 	if song.Confidence >= 1.5 && song.Score >= 30 {
 		fmt.Println("Verdict: STRONG MATCH")
-		return nil
 	} else if song.Confidence > 1.2 && song.Score >= 20 {
 		fmt.Println("Verdict: WEAK MATCH")
-		return nil
 	} else {
 		fmt.Println("Verdict: UNRELIABLE (Likely False Positive)")
-		return nil
+	}
+}
+
+func GetVerdict(song internal.MatchingSong) string {
+	if song.Score == 0 {
+		return "No matches found in database"
+	}
+	if song.Confidence >= 1.5 && song.Score >= 30 {
+		return "Verdict: STRONG MATCH"
+	} else if song.Confidence > 1.2 && song.Score >= 20 {
+		return "Verdict: WEAK MATCH"
+	} else {
+		return "Verdict: UNRELIABLE (Likely False Positive)"
 	}
 }
