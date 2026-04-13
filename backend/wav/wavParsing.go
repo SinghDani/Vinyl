@@ -93,7 +93,7 @@ func ParseWav(path string) (*WAV, error) {
 	}
 	fmt.Printf("%+v\n", header)
 
-	samples, err := getWavData(data[header.DataOffset:])
+	samples, err := BytesToSamples(data[header.DataOffset:])
 	if err != nil {
 		return nil, err
 	}
@@ -113,7 +113,7 @@ func stereoToMono(samples []float64) ([]float64, error) {
 	return res, nil
 }
 
-func getWavData(rawData []byte) ([]float64, error) {
+func BytesToSamples(rawData []byte) ([]float64, error) {
 	length := len(rawData)
 	if length%2 != 0 {
 		return nil, IncorrectWavFormat{"odd sample size"}
