@@ -27,7 +27,7 @@ func NewServer(Addr string, Db *db.DBConnection) *Server {
 		//TODO change this for production
 		WsUpgrader: websocket.Upgrader{
 			CheckOrigin: func(r *http.Request) bool {
-				return true
+				return r.Header.Get("origin") == "http://localhost:5173"
 			},
 		},
 	}
@@ -43,17 +43,21 @@ func (s *Server) Run() {
 }
 
 func (s *Server) registerRoutes(mux *http.ServeMux) {
-	mux.HandleFunc("/", s.home)
+	mux.HandleFunc("GET /songs", s.songs)
 	mux.HandleFunc("/recording", s.acceptRecording)
 }
 
-func (s *Server) home(w http.ResponseWriter, r *http.Request) {
+func (s *Server) songs(w http.ResponseWriter, r *http.Request) {
 	defer r.Body.Close()
 	songs, err := s.Db.GetAllSongs()
 	if err != nil {
 		http.Error(w, "db access failed", http.StatusInternalServerError)
 		return
 	}
+
+	//TODO look up cors setUP
+	w.Header().Add("Access-Control-Allow-Origin", "http://localhost:5173")
+
 	if err := json.NewEncoder(w).Encode(songs); err != nil {
 		http.Error(w, "could not send songs", http.StatusInternalServerError)
 		return
@@ -69,6 +73,7 @@ func (s *Server) acceptRecording(w http.ResponseWriter, r *http.Request) {
 
 	type match struct {
 		SongName string `json:"songName"`
+		Artist   string `json:"artist"`
 		Verdict  string `json:"verdict"`
 	}
 
@@ -135,7 +140,7 @@ func (s *Server) acceptRecording(w http.ResponseWriter, r *http.Request) {
 
 			if fingerprint.EvalMatch(matchingSong) {
 				fingerprint.PrintVerdict(matchingSong, s.Db)
-				if err := conn.WriteJSON(match{matchingSong.SongName, fingerprint.GetVerdict(matchingSong)}); err != nil {
+				if err := conn.WriteJSON(match{SongName: matchingSong.Name, Artist: matchingSong.Artist, Verdict: fingerprint.GetVerdict(matchingSong)}); err != nil {
 					fmt.Println("ws write winner failed:", err)
 				}
 				return
@@ -144,7 +149,7 @@ func (s *Server) acceptRecording(w http.ResponseWriter, r *http.Request) {
 	}
 
 	fingerprint.PrintVerdict(matchingSong, s.Db)
-	if err := conn.WriteJSON(match{matchingSong.SongName, fingerprint.GetVerdict(matchingSong)}); err != nil {
+	if err := conn.WriteJSON(match{SongName: matchingSong.Name, Artist: matchingSong.Artist, Verdict: fingerprint.GetVerdict(matchingSong)}); err != nil {
 		fmt.Println("ws write final result failed:", err)
 	}
 }

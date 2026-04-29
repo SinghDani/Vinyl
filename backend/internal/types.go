@@ -11,8 +11,14 @@ type GeneratedHash struct {
 	AnchorTime uint32
 }
 
+type Song struct {
+	Name   string `json:"name"`
+	Artist string `json:"artist"`
+}
+
 type MatchingSong struct {
-	SongName   string
+	Name       string
+	Artist     string
 	Confidence float64
 	SongId     uint32
 	Score      int

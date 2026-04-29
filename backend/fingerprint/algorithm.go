@@ -24,11 +24,6 @@ const (
 	hopSize      = windowSize / hopFactor //how much to slide each window by
 )
 
-type deltaKey struct {
-	song_id uint32
-	dt      int64
-}
-
 func ExtractHashesFromFile(file string, timeOffset int) ([]internal.GeneratedHash, error) {
 	wavData, err := wav.WavToSamples(file)
 	if err != nil {
@@ -341,6 +336,11 @@ func generateHashes(peaks [][]bool, secondsOffset float64, secondsThreshold floa
 // and db fingerprints for every song that was matched
 // returning the top matching song with a confidence ratio
 func findMatchingSong(fingerPrints []internal.Fingerprint, recordingHashes []internal.GeneratedHash, db *db.DBConnection) (internal.MatchingSong, error) {
+	type deltaKey struct {
+		song_id uint32
+		dt      int64
+	}
+
 	timedMatches := make(map[deltaKey]int)
 	fingerPrintsMap := make(map[uint32][]internal.Fingerprint)
 
@@ -448,11 +448,11 @@ func findMatchingSong(fingerPrints []internal.Fingerprint, recordingHashes []int
 	} else {
 		confidence = float64(topScore) / float64(secondScore)
 	}
-	songname, err := db.GetSong(topSong)
+	songEntry, err := db.GetSong(topSong)
 	if err != nil {
 		return internal.MatchingSong{}, err
 	}
-	return internal.MatchingSong{SongId: topSong, SongName: songname, Confidence: confidence, Score: topScore}, nil
+	return internal.MatchingSong{SongId: topSong, Name: songEntry.Name, Artist: songEntry.Artist, Confidence: confidence, Score: topScore}, nil
 }
 
 // returns if we found a significant match or not
@@ -474,7 +474,7 @@ func PrintVerdict(song internal.MatchingSong, db *db.DBConnection) {
 		fmt.Println("Result: No matches found in database.")
 		return
 	}
-	fmt.Printf("Matching Song: Id: %d, Song: %s \nScore: %d\n", song.SongId, song.SongName, song.Score)
+	fmt.Printf("Matching Song: Id: %d, Song: %s \nScore: %d\n", song.SongId, song.Name, song.Score)
 	fmt.Printf("Confidence Ratio: %.2f\n", song.Confidence)
 
 	if song.Confidence >= 1.5 && song.Score >= 30 {

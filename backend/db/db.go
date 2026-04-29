@@ -52,25 +52,29 @@ func (db *DBConnection) RemoveSong(songname string) error {
 	return err
 }
 
-func (db *DBConnection) GetSong(songId uint32) (string, error) {
-	row := db.db.QueryRow("SELECT name FROM songs WHERE id = $1", int32(songId))
-	var song string
-	err := row.Scan(&song)
-	return song, err
+func (db *DBConnection) GetSong(songId uint32) (internal.Song, error) {
+	row := db.db.QueryRow("SELECT name, artist FROM songs WHERE id = $1", int32(songId))
+	var songName string
+	var artist string
+	if err := row.Scan(&songName, &artist); err != nil {
+		return internal.Song{}, err
+	}
+	return internal.Song{Name: songName, Artist: artist}, nil
 }
 
-func (db *DBConnection) GetAllSongs() ([]string, error) {
-	rows, err := db.db.Query("SELECT name FROM songs")
+func (db *DBConnection) GetAllSongs() ([]internal.Song, error) {
+	rows, err := db.db.Query("SELECT name, artist FROM songs")
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
 
-	var songs []string
-	var entry string
+	var songs []internal.Song
+	var songName string
+	var artist string
 	for rows.Next() {
-		rows.Scan(&entry)
-		songs = append(songs, entry)
+		rows.Scan(&songName, &artist)
+		songs = append(songs, internal.Song{Name: songName, Artist: artist})
 	}
 	return songs, nil
 }

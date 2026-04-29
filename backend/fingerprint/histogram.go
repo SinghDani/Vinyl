@@ -1,12 +1,6 @@
 package fingerprint
 
-import (
-	"encoding/csv"
-	"fmt"
-	"os"
-	"strconv"
-)
-
+/*
 func exportAllHistogramsToCSV(timedMatches map[deltaKey]int, filename string) {
 	file, err := os.Create(filename)
 	if err != nil {
@@ -32,3 +26,5 @@ func exportAllHistogramsToCSV(timedMatches map[deltaKey]int, filename string) {
 	}
 	fmt.Println("Saved full histogram to", filename)
 }
+
+*/
