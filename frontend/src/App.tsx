@@ -1,7 +1,13 @@
+import Header from "./Header";
+import Recorder from "./Recorder";
+import SongList from "./SongList";
+
 export default function App() {
   return (
     <>
-      <h1>hello</h1>
+      <Header />
+      <Recorder />
+      <SongList />
     </>
   );
 }
