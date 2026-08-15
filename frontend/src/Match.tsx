@@ -1,19 +1,24 @@
 import type { MatchingSong } from "./types";
 
-type Props = {
-  match: MatchingSong;
-};
-
-export default function Match(props: Props) {
+export default function Match(props: { match: MatchingSong }) {
   const { match } = props;
+  const hasMatch = match.name.trim().length > 0;
 
   return (
-    <>
-      <div>
-        <div>{match.name || "-"}</div>
-        <div>{match.artist}</div>
-        <div>CONFIDENCE{match.confidence}</div>
-      </div>
-    </>
+    <div className={`match-card ${hasMatch ? "has-match" : ""}`}>
+      {hasMatch ? (
+        <>
+          <div className="match-song">{match.name}</div>
+          <div className="match-artist">{match.artist}</div>
+          {match.confidence && (
+            <div className="match-confidence">
+              CONFIDENCE <span>{match.confidence}</span>
+            </div>
+          )}
+        </>
+      ) : (
+        <div className="match-empty">-</div>
+      )}
+    </div>
   );
 }

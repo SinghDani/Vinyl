@@ -11,12 +11,16 @@ export default function Recorder() {
   });
 
   return (
-    <>
-      <div>IDENTIFY A SONG</div>
-      <RecordButton setMatch={setMatch} />
+    <section className="hero-row">
+      <div>
+        <p className="record-label">Identify a song</p>
+        <RecordButton setMatch={setMatch} />
+      </div>
 
-      <div>LAST MATCH</div>
-      <Match match={match} />
-    </>
+      <div>
+        <p className="match-label">Last match</p>
+        <Match match={match} />
+      </div>
+    </section>
   );
 }

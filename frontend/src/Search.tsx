@@ -8,21 +8,22 @@ type Props = {
 export default function Search(props: Props) {
   const { songs, setFilteredSongs } = props;
   return (
-    <>
-      <span>/</span>
+    <div className="search-wrap">
+      <span className="search-slash">/</span>
       <input
-        placeholder="search song..."
+        className="search-input"
+        placeholder="Search Song..."
         onChange={(e: React.ChangeEvent<HTMLInputElement>) => {
           e.preventDefault();
           setFilteredSongs(
             songs.filter((song) =>
               `${song.name} ${song.artist}`
                 .toLowerCase()
-                .includes(e.target.value),
+                .includes(e.target.value.toLowerCase()),
             ),
           );
         }}
       />
-    </>
+    </div>
   );
 }

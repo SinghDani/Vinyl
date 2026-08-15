@@ -6,6 +6,7 @@ export default function SongList() {
   const [songs, setSongs] = useState<Song[]>([]);
   const [filteredSongs, setFilteredSongs] = useState<Song[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
+  const [err, setErr] = useState<boolean>(false);
 
   useEffect(() => {
     const getSongs = async () => {
@@ -17,6 +18,7 @@ export default function SongList() {
         setLoading(false);
       } catch (err) {
         console.log(err);
+        setErr(true);
       }
     };
 
@@ -24,21 +26,42 @@ export default function SongList() {
   }, []);
 
   return (
-    <>
-      <div>Audio List</div>
+    <section>
       <Search songs={songs} setFilteredSongs={setFilteredSongs} />
-
-      {
-        <div>
-          {loading
-            ? "loading..."
-            : filteredSongs.map((song, id) => (
-                <div key={id}>
-                  {song.name} - {song.artist}
-                </div>
-              ))}
-        </div>
-      }
-    </>
+      <table className="board-table">
+        <thead>
+          <tr>
+            <th>#</th>
+            <th>Song</th>
+          </tr>
+        </thead>
+        <tbody>
+          {err ? (
+            <tr>
+              <td colSpan={2} className="table-status">
+                Error: could not fetch songs
+              </td>
+            </tr>
+          ) : loading ? (
+            <tr>
+              <td colSpan={2} className="table-status">
+                loading...
+              </td>
+            </tr>
+          ) : (
+            filteredSongs.map((song, id) => (
+              <tr key={`${song.name}-${song.artist}-${id}`}>
+                <td className="row-num">{id + 1}</td>
+                <td>
+                  <span className="row-song-name">{song.name}</span>
+                  <span className="row-song-sep">-</span>
+                  <span className="row-song-artist">{song.artist}</span>
+                </td>
+              </tr>
+            ))
+          )}
+        </tbody>
+      </table>
+    </section>
   );
 }
