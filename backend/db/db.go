@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"regexp"
 
 	"github.com/SinghDani/audioRecognition/internal"
 	_ "github.com/jackc/pgx/v5/stdlib"
@@ -73,16 +74,25 @@ func (db *DBConnection) GetAllSongs() ([]internal.Song, error) {
 	var songName string
 	var artist string
 	for rows.Next() {
-		rows.Scan(&songName, &artist)
+		if err := rows.Scan(&songName, &artist); err != nil {
+			return nil, err
+		}
 		songs = append(songs, internal.Song{Name: songName, Artist: artist})
 	}
 	return songs, nil
 }
 
-func (db *DBConnection) StoreHashes(hashes []internal.GeneratedHash, songname string) error {
+func (db *DBConnection) StoreHashes(hashes []internal.GeneratedHash, song string) error {
 	if len(hashes) == 0 {
 		return errors.New("no hashes to store")
 	}
+
+	r := regexp.MustCompile(`^(.+) - (.+)\.wav$`)
+	songInfo := r.FindStringSubmatch(song)
+	if songInfo == nil {
+		return errors.New("wrong file format")
+	}
+
 	tx, err := db.db.Begin()
 	if err != nil {
 		return err
@@ -91,7 +101,7 @@ func (db *DBConnection) StoreHashes(hashes []internal.GeneratedHash, songname st
 
 	var id int32
 	//since name is unique will return err if song already in db
-	row := tx.QueryRow("INSERT INTO songs (name) VALUES($1) RETURNING id", songname)
+	row := tx.QueryRow("INSERT INTO songs (name, artist) VALUES($1, $2) RETURNING id", songInfo[1], songInfo[2])
 	if err := row.Scan(&id); err != nil {
 		return err
 	}
