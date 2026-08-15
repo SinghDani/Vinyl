@@ -44,7 +44,7 @@ func (s *Server) Run() {
 
 func (s *Server) registerRoutes(mux *http.ServeMux) {
 	mux.HandleFunc("GET /songs", s.songs)
-	mux.HandleFunc("/recording", s.acceptRecording)
+	mux.HandleFunc("/recording", s.acceptRecording) //Todo check if this should be a GET
 }
 
 func (s *Server) songs(w http.ResponseWriter, r *http.Request) {
