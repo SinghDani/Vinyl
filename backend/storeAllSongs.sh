@@ -1,5 +1,5 @@
 #!/bin/sh
-
+#Todo change this here
 ##!/bin/bash
 shopt -s nullglob
 #go build -o fingerprinting

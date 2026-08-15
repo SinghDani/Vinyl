@@ -491,10 +491,10 @@ func GetVerdict(song internal.MatchingSong) string {
 		return "No matches found in database"
 	}
 	if song.Confidence >= 1.5 && song.Score >= 30 {
-		return "Verdict: STRONG MATCH"
+		return "STRONG MATCH"
 	} else if song.Confidence > 1.2 && song.Score >= 20 {
-		return "Verdict: WEAK MATCH"
+		return "WEAK MATCH"
 	} else {
-		return "Verdict: UNRELIABLE (Likely False Positive)"
+		return "UNRELIABLE (Likely False Positive)"
 	}
 }
