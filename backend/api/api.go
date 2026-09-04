@@ -112,6 +112,7 @@ func (s *Server) acceptRecording(w http.ResponseWriter, r *http.Request) {
 
 			timeOffset := chunkIndex * windowsPerBatch
 			chunkIndex++
+
 			genHashes, err := fingerprint.SamplesToHashes(chunkSamples, timeOffset)
 			if err != nil {
 				fmt.Println("hash extraction failed:", err)

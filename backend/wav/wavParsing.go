@@ -36,6 +36,10 @@ func WavToSamples(file string) (*WAV, error) {
 	//TODO clean up audioFiless and donwsample files, probably don't want to keep that
 	outPath := "./audioFiles/downsampledWAVs/" + filepath.Base(file)
 
+	if err := os.Mkdir("./audioFiles/downsampledWAVs/", 0755); err != nil && !os.IsExist(err) {
+		return nil, err
+	}
+
 	cmd := exec.Command(
 		"ffmpeg",
 		"-y",
@@ -47,24 +51,14 @@ func WavToSamples(file string) (*WAV, error) {
 	)
 
 	out, err := cmd.CombinedOutput()
+	defer os.Remove(outPath)
+
 	if err != nil {
 		fmt.Println(string(out))
 		return nil, err
 	}
 
 	return ParseWav(outPath)
-	/*
-		if wavData.header.NumChannels == 2 {
-			wavData.samples, err = stereoToMono(wavData.samples)
-			if err != nil {
-				return nil, err
-			}
-		}
-
-		//#TODO use ffmpeg rather
-		wavData.samples = lowpass(wavData.samples, int(wavData.header.SampleRate), 5000)
-		wavData.samples = downsample(wavData.samples, 4)
-	*/
 }
 
 func (I IncorrectWavFormat) Error() string {

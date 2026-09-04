@@ -1,12 +1,11 @@
-#!/bin/sh
+#!/bin/bash
+
 #Todo change this here
-##!/bin/bash
 shopt -s nullglob
-#go build -o fingerprinting
+go build -o audioRec
 for file in audioFiles/*.wav; do
     echo "$file"
-    #./fingerprinting 1 "$file"
     ./audioRec "store" "$file"
 done
 
-#rm fingerprinting
+rm audioRec
