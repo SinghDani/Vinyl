@@ -33,11 +33,18 @@ func NewServer(Addr string, Db *db.DBConnection) *Server {
 	}
 }
 
+func cors(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Add("Access-Control-Allow-Origin", "http://localhost:5173")
+		next.ServeHTTP(w, r)
+	})
+}
+
 func (s *Server) Run() {
 	mux := http.NewServeMux()
 	s.registerRoutes(mux)
 
-	if err := http.ListenAndServe(s.Addr, mux); err != nil {
+	if err := http.ListenAndServe(s.Addr, cors(mux)); err != nil {
 		log.Fatal(err)
 	}
 }
@@ -49,14 +56,14 @@ func (s *Server) registerRoutes(mux *http.ServeMux) {
 
 func (s *Server) songs(w http.ResponseWriter, r *http.Request) {
 	defer r.Body.Close()
+
+	w.Header().Set("Content-Type", "application/json")
+
 	songs, err := s.Db.GetAllSongs()
 	if err != nil {
 		http.Error(w, "db access failed", http.StatusInternalServerError)
 		return
 	}
-
-	//TODO look up cors setUP
-	w.Header().Add("Access-Control-Allow-Origin", "http://localhost:5173")
 
 	if err := json.NewEncoder(w).Encode(songs); err != nil {
 		http.Error(w, "could not send songs", http.StatusInternalServerError)

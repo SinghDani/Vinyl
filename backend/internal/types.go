@@ -7,8 +7,8 @@ type Fingerprint struct {
 }
 
 type GeneratedHash struct {
-	Hash       uint32 // anchor freq | target freq | dt
-	AnchorTime uint32
+	Hash       uint32 `json:"hash"` // anchor freq | target freq | dt
+	AnchorTime uint32 `json:"anchorTime"`
 }
 
 type Song struct {
