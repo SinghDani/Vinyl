@@ -23,3 +23,10 @@ type MatchingSong struct {
 	SongId     uint32
 	Score      int
 }
+
+type Match struct {
+	SongName string `json:"songName"`
+	Artist   string `json:"artist"`
+	Match    bool   `json:"match"`
+	Verdict  string `json:"verdict"`
+}
