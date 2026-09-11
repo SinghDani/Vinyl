@@ -50,14 +50,38 @@ func (s *Server) Run() {
 }
 
 func (s *Server) registerRoutes(mux *http.ServeMux) {
-	mux.HandleFunc("GET /songs", s.songs)
+	mux.HandleFunc("GET /songs", s.getSongs)
 	mux.HandleFunc("/recording", s.acceptRecording) //Todo check if this should be a GET
+	mux.HandleFunc("POST /song", s.getMatchinSong)
 }
 
-func (s *Server) songs(w http.ResponseWriter, r *http.Request) {
+func (s *Server) getMatchinSong(w http.ResponseWriter, r *http.Request) {
 	defer r.Body.Close()
 
+	var hashes []internal.GeneratedHash
+	if err := json.NewDecoder(r.Body).Decode(&hashes); err != nil {
+		http.Error(w, "could not decode hashes", http.StatusInternalServerError)
+		return
+	}
+
+	song, err := fingerprint.IdentifyRecording(s.Db, hashes)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+	}
+
+	res := internal.Match{
+		SongName: song.Name, Artist: song.Artist, Match: fingerprint.EvalMatch(song), Verdict: fingerprint.GetVerdict(song),
+	}
+
 	w.Header().Set("Content-Type", "application/json")
+	if err := json.NewEncoder(w).Encode(res); err != nil {
+		http.Error(w, "could not send song", http.StatusInternalServerError)
+		return
+	}
+}
+
+func (s *Server) getSongs(w http.ResponseWriter, r *http.Request) {
+	defer r.Body.Close()
 
 	songs, err := s.Db.GetAllSongs()
 	if err != nil {
@@ -65,6 +89,7 @@ func (s *Server) songs(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	w.Header().Set("Content-Type", "application/json")
 	if err := json.NewEncoder(w).Encode(songs); err != nil {
 		http.Error(w, "could not send songs", http.StatusInternalServerError)
 		return
@@ -76,12 +101,6 @@ func (s *Server) acceptRecording(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		fmt.Println("upgrade failed:", err)
 		return
-	}
-
-	type match struct {
-		SongName string `json:"songName"`
-		Artist   string `json:"artist"`
-		Verdict  string `json:"verdict"`
 	}
 
 	totalTime := 40     // record for max of 40 sec
@@ -148,7 +167,7 @@ func (s *Server) acceptRecording(w http.ResponseWriter, r *http.Request) {
 
 			if fingerprint.EvalMatch(matchingSong) {
 				fingerprint.PrintVerdict(matchingSong, s.Db)
-				if err := conn.WriteJSON(match{SongName: matchingSong.Name, Artist: matchingSong.Artist, Verdict: fingerprint.GetVerdict(matchingSong)}); err != nil {
+				if err := conn.WriteJSON(internal.Match{SongName: matchingSong.Name, Artist: matchingSong.Artist, Verdict: fingerprint.GetVerdict(matchingSong)}); err != nil {
 					fmt.Println("ws write winner failed:", err)
 				}
 				return
@@ -157,7 +176,7 @@ func (s *Server) acceptRecording(w http.ResponseWriter, r *http.Request) {
 	}
 
 	fingerprint.PrintVerdict(matchingSong, s.Db)
-	if err := conn.WriteJSON(match{SongName: matchingSong.Name, Artist: matchingSong.Artist, Verdict: fingerprint.GetVerdict(matchingSong)}); err != nil {
+	if err := conn.WriteJSON(internal.Match{SongName: matchingSong.Name, Artist: matchingSong.Artist, Verdict: fingerprint.GetVerdict(matchingSong)}); err != nil {
 		fmt.Println("ws write final result failed:", err)
 	}
 }
