@@ -32,11 +32,11 @@ type AudioRuntime = {
   flushResolver: (() => void) | null;
 };
 
-const TARGET_SAMPLE_RATE = 11_025;
-const LOWPASS_CUTOFF_HZ = 5_000;
+const TARGET_SAMPLE_RATE = 11025;
+const LOWPASS_CUTOFF_HZ = 5000;
 const FRAME_DURATION_MS = 200;
 const FRAME_SAMPLES = Math.round(
-  (TARGET_SAMPLE_RATE * FRAME_DURATION_MS) / 1_000,
+  (TARGET_SAMPLE_RATE * FRAME_DURATION_MS) / 1000,
 );
 
 function getWebSocketUrl(): string {
@@ -283,6 +283,12 @@ export default function RecordButton(props: Props) {
       runtimeRef.current = runtime;
       processedSampleCountRef.current = 0;
 
+      const worker = new Worker(new URL("../public/worker.ts", import.meta.url));
+      worker.onmessage = (e) => {
+        console.log("this is the mathing song:")
+        console.log(e.data)
+      }
+
       workletNode.port.onmessage = (event: MessageEvent<WorkletMessage>) => {
         const data = event.data;
 
@@ -290,7 +296,8 @@ export default function RecordButton(props: Props) {
           processedSampleCountRef.current += data.samples.byteLength / 2;
 
           if (runtime.socket.readyState === WebSocket.OPEN) {
-            runtime.socket.send(data.samples);
+            //runtime.socket.send(data.samples);
+            worker.postMessage(data.samples, [data.samples])
           }
           return;
         }
