@@ -14,11 +14,16 @@ type WorkletFlushCompleteMessage = {
 
 type WorkletMessage = WorkletPcmMessage | WorkletFlushCompleteMessage;
 
-type BackendMatchMessage = {
+type WorkerMatch = {
   songName: string;
   artist: string;
+  match: boolean;
   verdict: string;
 };
+
+type WorkerMessage =
+  | { type: "result"; result: WorkerMatch }
+  | { type: "error"; message: string };
 
 type AudioRuntime = {
   audioContext: AudioContext;
@@ -27,7 +32,7 @@ type AudioRuntime = {
   lowpassB: BiquadFilterNode;
   workletNode: AudioWorkletNode;
   muteGain: GainNode;
-  socket: WebSocket;
+  worker: Worker;
   sourceSampleRate: number;
   flushResolver: (() => void) | null;
 };
@@ -38,14 +43,6 @@ const FRAME_DURATION_MS = 200;
 const FRAME_SAMPLES = Math.round(
   (TARGET_SAMPLE_RATE * FRAME_DURATION_MS) / 1000,
 );
-
-function getWebSocketUrl(): string {
-  const fromEnv = import.meta.env.VITE_WS_URL;
-  if (typeof fromEnv !== "string" || fromEnv.trim().length === 0) {
-    throw new Error("Missing VITE_WS_URL in frontend .env");
-  }
-  return fromEnv;
-}
 
 function getAudioContextConstructor(): typeof AudioContext {
   const maybeWindow = window as Window & {
@@ -61,39 +58,8 @@ function getAudioContextConstructor(): typeof AudioContext {
   throw new Error("AudioContext is not supported in this browser.");
 }
 
-function connectWebSocket(url: string): Promise<WebSocket> {
-  return new Promise((resolve, reject) => {
-    const ws = new WebSocket(url);
-    ws.binaryType = "arraybuffer";
-
-    const cleanup = () => {
-      ws.removeEventListener("open", handleOpen);
-      ws.removeEventListener("error", handleError);
-    };
-
-    const handleOpen = () => {
-      cleanup();
-      resolve(ws);
-    };
-
-    const handleError = () => {
-      cleanup();
-      ws.close();
-      reject(new Error(`WebSocket connection failed: ${url}`));
-    };
-
-    ws.addEventListener("open", handleOpen);
-    ws.addEventListener("error", handleError);
-  });
-}
-
-function parseMatchMessage(message: string): MatchingSong {
-  const payload = JSON.parse(message) as BackendMatchMessage;
-  return {
-    name: payload.songName,
-    artist: payload.artist,
-    confidence: payload.verdict,
-  };
+function getErrorMessage(error: unknown): string {
+  return error instanceof Error ? error.message : String(error);
 }
 
 type Props = {
@@ -102,6 +68,7 @@ type Props = {
 
 export default function RecordButton(props: Props) {
   const [state, setState] = useState<RecordingState>("idle");
+  const [errorMessage, setErrorMessage] = useState("");
   const { setMatch } = props;
 
   const streamRef = useRef<MediaStream | null>(null);
@@ -140,14 +107,15 @@ export default function RecordButton(props: Props) {
     if (!runtime) return;
 
     // Mark the session as gone before closing resources, so the next click can
-    // start a fresh recording even after the backend found a match.
+    // start a fresh recording even after the worker found a match.
     runtimeRef.current = null;
     runtime.flushResolver = null;
 
     runtime.workletNode.port.onmessage = null;
-    runtime.socket.onmessage = null;
-    runtime.socket.onerror = null;
-    runtime.socket.onclose = null;
+    runtime.worker.onmessage = null;
+    runtime.worker.onerror = null;
+    runtime.worker.onmessageerror = null;
+    runtime.worker.terminate();
 
     runtime.sourceNode.disconnect();
     runtime.lowpassA.disconnect();
@@ -155,18 +123,12 @@ export default function RecordButton(props: Props) {
     runtime.workletNode.disconnect();
     runtime.muteGain.disconnect();
 
-    if (runtime.socket.readyState === WebSocket.OPEN) {
-      runtime.socket.close();
-    } else if (runtime.socket.readyState === WebSocket.CONNECTING) {
-      runtime.socket.close();
-    }
-
     if (runtime.audioContext.state !== "closed") {
       await runtime.audioContext.close();
     }
   }
 
-  async function stopRecording() {
+  async function stopRecording(finalState: RecordingState = "idle") {
     if (stopRequestedRef.current) {
       return;
     }
@@ -195,10 +157,11 @@ export default function RecordButton(props: Props) {
         durationSeconds: Number(durationSeconds.toFixed(3)),
       });
 
-      setState("idle");
+      setState(finalState);
       stopRequestedRef.current = false;
     } catch (error) {
       console.error(error);
+      setErrorMessage(getErrorMessage(error));
       setState("error");
       stopRequestedRef.current = false;
     }
@@ -210,10 +173,11 @@ export default function RecordButton(props: Props) {
     }
     stopRequestedRef.current = false;
     setMatch({ name: "", artist: "", confidence: "" });
+    setErrorMessage("");
     setState("recording");
 
     let localAudioContext: AudioContext | null = null;
-    let localSocket: WebSocket | null = null;
+    let localWorker: Worker | null = null;
 
     try {
       if (!navigator.mediaDevices?.getUserMedia) {
@@ -229,8 +193,6 @@ export default function RecordButton(props: Props) {
         },
       });
       streamRef.current = stream;
-
-      localSocket = await connectWebSocket(getWebSocketUrl());
 
       const AudioContextCtor = getAudioContextConstructor();
       const audioContext = new AudioContextCtor();
@@ -268,6 +230,11 @@ export default function RecordButton(props: Props) {
       const muteGain = audioContext.createGain();
       muteGain.gain.value = 0;
 
+      const worker = new Worker(
+        new URL("./fingerprint-worker.ts", import.meta.url),
+      );
+      localWorker = worker;
+
       const runtime: AudioRuntime = {
         audioContext,
         sourceNode,
@@ -275,7 +242,7 @@ export default function RecordButton(props: Props) {
         lowpassB,
         workletNode,
         muteGain,
-        socket: localSocket,
+        worker,
         sourceSampleRate: audioContext.sampleRate,
         flushResolver: null,
       };
@@ -283,11 +250,39 @@ export default function RecordButton(props: Props) {
       runtimeRef.current = runtime;
       processedSampleCountRef.current = 0;
 
-      const worker = new Worker(new URL("../public/worker.ts", import.meta.url));
-      worker.onmessage = (e) => {
-        console.log("this is the mathing song:")
-        console.log(e.data)
-      }
+      const handleWorkerError = (message: string) => {
+        console.error(message);
+        setErrorMessage(message);
+        void stopRecording("error");
+      };
+
+      worker.onmessage = (event: MessageEvent<WorkerMessage>) => {
+        const message = event.data;
+        if (message.type === "error") {
+          handleWorkerError(message.message);
+          return;
+        }
+
+        const result = message.result;
+        setMatch({
+          name: result.songName,
+          artist: result.artist,
+          confidence: result.verdict,
+        });
+        console.log("winner-detected", { song: result.songName });
+        void stopRecording();
+      };
+
+      worker.onerror = (event) => {
+        event.preventDefault();
+        handleWorkerError(
+          event.message || "The fingerprint worker stopped unexpectedly.",
+        );
+      };
+
+      worker.onmessageerror = () => {
+        handleWorkerError("The fingerprint worker returned an invalid message.");
+      };
 
       workletNode.port.onmessage = (event: MessageEvent<WorkletMessage>) => {
         const data = event.data;
@@ -295,9 +290,12 @@ export default function RecordButton(props: Props) {
         if (data.type === "pcm16") {
           processedSampleCountRef.current += data.samples.byteLength / 2;
 
-          if (runtime.socket.readyState === WebSocket.OPEN) {
-            //runtime.socket.send(data.samples);
-            worker.postMessage(data.samples, [data.samples])
+          try {
+            worker.postMessage(data.samples, [data.samples]);
+          } catch (error) {
+            handleWorkerError(
+              `Could not send audio to the fingerprint worker: ${getErrorMessage(error)}`,
+            );
           }
           return;
         }
@@ -306,35 +304,6 @@ export default function RecordButton(props: Props) {
           runtime.flushResolver?.();
         }
       };
-
-
-      runtime.socket.onmessage = (event: MessageEvent<string>) => {
-        try {
-          const matchResult = parseMatchMessage(event.data);
-          setMatch(matchResult);
-          console.log("winner-detected", { song: matchResult.name });
-          void stopRecording();
-        } catch (error) {
-          console.error("Invalid websocket match message", error);
-          setState("error");
-          void stopRecording();
-        }
-      };
-
-      runtime.socket.onerror = (event) => {
-        console.error("WebSocket stream error", event);
-        if (!stopRequestedRef.current) {
-          void stopRecording();
-        }
-      };
-
-      runtime.socket.onclose = () => {
-        if (!stopRequestedRef.current && runtimeRef.current === runtime) {
-          console.error("WebSocket closed during recording.");
-          void stopRecording();
-        }
-      };
-
       sourceNode.connect(lowpassA);
       lowpassA.connect(lowpassB);
       lowpassB.connect(workletNode);
@@ -342,7 +311,6 @@ export default function RecordButton(props: Props) {
       muteGain.connect(audioContext.destination);
 
       console.log("dsp-started", {
-        wsUrl: getWebSocketUrl(),
         sourceSampleRate: audioContext.sampleRate,
         targetSampleRate: TARGET_SAMPLE_RATE,
         lowpassHz: LOWPASS_CUTOFF_HZ,
@@ -352,14 +320,13 @@ export default function RecordButton(props: Props) {
       setState("recording");
     } catch (error) {
       console.error(error);
-      if (localSocket && localSocket.readyState < WebSocket.CLOSING) {
-        localSocket.close();
-      }
+      localWorker?.terminate();
       if (localAudioContext && localAudioContext.state !== "closed") {
         await localAudioContext.close();
       }
       await stopAudioRuntime();
       stopTracks();
+      setErrorMessage(getErrorMessage(error));
       setState("error");
       stopRequestedRef.current = false;
     }
@@ -385,7 +352,7 @@ export default function RecordButton(props: Props) {
   const statusText = isRecordingUi
     ? "Listening..."
     : state === "error"
-      ? "Error"
+      ? errorMessage || "Error"
       : "";
 
   return (

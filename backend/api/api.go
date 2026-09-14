@@ -2,15 +2,12 @@ package api
 
 import (
 	"encoding/json"
-	"fmt"
 	"log"
 	"net/http"
-	"time"
 
 	"github.com/SinghDani/audioRecognition/db"
 	"github.com/SinghDani/audioRecognition/fingerprint"
 	"github.com/SinghDani/audioRecognition/internal"
-	"github.com/SinghDani/audioRecognition/wav"
 	"github.com/gorilla/websocket"
 )
 
@@ -24,12 +21,6 @@ func NewServer(Addr string, Db *db.DBConnection) *Server {
 	return &Server{
 		Addr: Addr,
 		Db:   Db,
-		//TODO change this for production
-		WsUpgrader: websocket.Upgrader{
-			CheckOrigin: func(r *http.Request) bool {
-				return r.Header.Get("origin") == "http://localhost:5173"
-			},
-		},
 	}
 }
 
@@ -51,7 +42,7 @@ func (s *Server) Run() {
 
 func (s *Server) registerRoutes(mux *http.ServeMux) {
 	mux.HandleFunc("GET /songs", s.getSongs)
-	mux.HandleFunc("/recording", s.acceptRecording) //Todo check if this should be a GET
+	//mux.HandleFunc("/recording", s.acceptRecording)
 	mux.HandleFunc("POST /song", s.getMatchinSong)
 }
 
@@ -96,6 +87,7 @@ func (s *Server) getSongs(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+/*
 func (s *Server) acceptRecording(w http.ResponseWriter, r *http.Request) {
 	conn, err := s.WsUpgrader.Upgrade(w, r, nil)
 	if err != nil {
@@ -180,3 +172,5 @@ func (s *Server) acceptRecording(w http.ResponseWriter, r *http.Request) {
 		fmt.Println("ws write final result failed:", err)
 	}
 }
+
+*/
