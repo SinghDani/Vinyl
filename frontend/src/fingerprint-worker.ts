@@ -1,10 +1,23 @@
+declare function importScripts(...urls: string[]): void
+
+declare const Go: new () => {
+  importObject: WebAssembly.Imports
+  run(instance: WebAssembly.Instance): Promise<void>
+}
+
+declare function samplesToHashes(samples: Uint8Array, timeOffset: number): string
+
 importScripts("../wasm/wasm_exec.js")
 
 const go = new Go();
 let ready = false;
 WebAssembly.instantiateStreaming(fetch("../wasm/main.wasm"), go.importObject).then((result) => {
-  go.run(result.instance);
+  go.run(result.instance).catch((err: unknown) => {
+    sendError(`Fingerprint engine stopped: ${getErrorMessage(err)}`)
+  });
   ready = true;
+}).catch((err: unknown) => {
+  sendError(`Could not load the fingerprint engine: ${getErrorMessage(err)}`)
 });
 
 const samplingRate = 11025
@@ -36,11 +49,26 @@ type Match = {
 	verdict: string
 }
 
+type WorkerMessage =
+  | { type: "result", result: Match }
+  | { type: "error", message: string }
+
 const masterHashList: GeneratedHash[][] = [];
 let buffer: number[] = []
 let chunkIndex = 0;
 let foundSong = false;
 let processing = false;
+
+function getErrorMessage(err: unknown): string {
+  return err instanceof Error ? err.message : String(err)
+}
+
+function sendError(message: string) {
+  if (foundSong) return
+  foundSong = true
+  const workerMessage: WorkerMessage = { type: "error", message }
+  postMessage(workerMessage)
+}
 
 onmessage = (e) => {
   if (foundSong) return
@@ -72,7 +100,7 @@ async function processBufferedBatches() {
       const res = JSON.parse(samplesToHashes(new Uint8Array(chunkBytes), timeOffset))
       //console.log(res)
       if (res.error != null) {
-        //error
+        sendError(`Fingerprint generation failed: ${res.error}`)
         return
       }
 
@@ -89,16 +117,21 @@ async function processBufferedBatches() {
         method: "POST",
         body: JSON.stringify(hashBatch)
       })
+      if (!response.ok) {
+        const details = (await response.text()).trim()
+        throw new Error(details || `Matching request failed (${response.status})`)
+      }
       const song: Match = await response.json()
 
       if (song.match) {
         foundSong = true;
-        postMessage(song);
+        const workerMessage: WorkerMessage = { type: "result", result: song }
+        postMessage(workerMessage);
         break
       }
     }
   } catch (err) {
-    console.log(err);
+    sendError(getErrorMessage(err))
   } finally {
     processing = false;
   }
