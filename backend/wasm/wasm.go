@@ -1,3 +1,5 @@
+//go:build js && wasm
+
 package main
 
 import (
@@ -7,11 +9,18 @@ import (
 
 	"github.com/SinghDani/audioRecognition/fingerprint"
 	"github.com/SinghDani/audioRecognition/internal"
+	"github.com/SinghDani/audioRecognition/internal/audioconfig"
 	"github.com/SinghDani/audioRecognition/wav"
 )
 
 func main() {
 	js.Global().Set("samplesToHashes", js.FuncOf(samplesToHashes))
+	js.Global().Set("getFingerprintConfig", js.FuncOf(func(this js.Value, args []js.Value) any {
+		return map[string]any{"sampleRate": audioconfig.SampleRate}
+	}))
+	js.Global().Set("secondsToWindows", js.FuncOf(func(this js.Value, args []js.Value) any {
+		return fingerprint.SecondsToWindows(args[0].Float())
+	}))
 	select {}
 }
 

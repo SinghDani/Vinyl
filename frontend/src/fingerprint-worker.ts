@@ -1,4 +1,7 @@
-declare function importScripts(...urls: string[]): void
+import { API_BASE_URL } from "./api-config"
+import "./wasm/wasm_exec.js"
+import { BATCH_DURATION_SECONDS as totalBatchTime, MAX_RECORDING_SECONDS as totalTime, HASH_HISTORY_BATCHES as batchWindow } from "./recording-config"
+import type { GeneratedHash, WorkerMatch as Match, WorkerMessage } from "./types"
 
 declare const Go: new () => {
   importObject: WebAssembly.Imports
@@ -6,52 +9,30 @@ declare const Go: new () => {
 }
 
 declare function samplesToHashes(samples: Uint8Array, timeOffset: number): string
+declare function getFingerprintConfig(): { sampleRate: number }
+declare function secondsToWindows(seconds: number): number
 
-importScripts("../wasm/wasm_exec.js")
-
-const go = new Go();
 let ready = false;
-WebAssembly.instantiateStreaming(fetch("../wasm/main.wasm"), go.importObject).then((result) => {
+let windowsPerBatch = 0;
+let samplesPerBatch = 0;
+
+async function initializeWasm() {
+  const go = new Go();
+  const result = await WebAssembly.instantiateStreaming(fetch("../wasm/main.wasm"), go.importObject)
   go.run(result.instance).catch((err: unknown) => {
     sendError(`Fingerprint engine stopped: ${getErrorMessage(err)}`)
   });
+  const config = getFingerprintConfig()
+  samplesPerBatch = totalBatchTime * config.sampleRate
+  windowsPerBatch = secondsToWindows(totalBatchTime)
   ready = true;
-}).catch((err: unknown) => {
+  const message: WorkerMessage = { type: "ready", sampleRate: config.sampleRate }
+  postMessage(message)
+}
+
+initializeWasm().catch((err: unknown) => {
   sendError(`Could not load the fingerprint engine: ${getErrorMessage(err)}`)
 });
-
-const samplingRate = 11025
-const windowSize = 1024
-const hopFactor = 2
-const hopSize = windowSize / hopFactor //how much to slide each window by
-
-const totalTime = 40     // record for max of 40 sec
-const totalBatchTime = 5 // process in batches of 5 sec
-const windowsPerBatch = SecondsToWindows(totalBatchTime)
-const samplesPerBatch = totalBatchTime * samplingRate
-
-
-function SecondsToWindows(seconds : number) : number {
-  if (seconds == 0) return 0;
-  const secondsPerHop = hopSize / samplingRate
-  return Math.ceil(seconds / secondsPerHop)
-}
-
-type GeneratedHash = {
-  hash: number
-  anchorTime: number
-}
-
-type Match = {
-	songName: string
-	artist: string
-	match: boolean
-	verdict: string
-}
-
-type WorkerMessage =
-  | { type: "result", result: Match }
-  | { type: "error", message: string }
 
 const masterHashList: GeneratedHash[][] = [];
 let buffer: number[] = []
@@ -105,7 +86,6 @@ async function processBufferedBatches() {
       }
 
       masterHashList.push(res.hashes)
-      const batchWindow = 3; //only look at the last 15 seconds
       const hashBatch: GeneratedHash[] = [];
 
       let start = Math.max(0, masterHashList.length - batchWindow)
@@ -113,7 +93,7 @@ async function processBufferedBatches() {
         hashBatch.push(...(masterHashList[start]))
       }
 
-      const response = await fetch("http://localhost:3000/song", {
+      const response = await fetch(`${API_BASE_URL}/song`, {
         method: "POST",
         body: JSON.stringify(hashBatch)
       })
@@ -123,7 +103,7 @@ async function processBufferedBatches() {
       }
       const song: Match = await response.json()
 
-      if (song.match) {
+      if (song.match || chunkIndex === totalBatches) {
         foundSong = true;
         const workerMessage: WorkerMessage = { type: "result", result: song }
         postMessage(workerMessage);
