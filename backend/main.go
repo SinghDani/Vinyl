@@ -12,8 +12,9 @@ import (
 )
 
 func main() {
-	if len(os.Args) < 2 {
-		log.Fatal("not enough arguments")
+	action := "record"
+	if len(os.Args) > 1 {
+		action = os.Args[1]
 	}
 
 	if err := godotenv.Load("./.env"); err != nil {
@@ -25,8 +26,6 @@ func main() {
 		log.Fatal(err)
 	}
 	defer db.CloseDBConnection()
-
-	action := os.Args[1]
 
 	if action == "store" {
 		if len(os.Args) < 3 {
