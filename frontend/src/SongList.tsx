@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { API_BASE_URL } from "./api-config";
 import Search from "./Search";
 import type { Song } from "./types";
 
@@ -11,7 +12,7 @@ export default function SongList() {
   useEffect(() => {
     const getSongs = async () => {
       try {
-        const res = await fetch("http://localhost:3000/songs");
+        const res = await fetch(`${API_BASE_URL}/songs`);
         const songs: Song[] = await res.json();
         setSongs(songs);
         setFilteredSongs(songs);

@@ -42,12 +42,11 @@ func main() {
 			log.Fatal(err)
 		}
 	} else if action == "record" {
-		/*
-			if err := audio.RecordAudio(db); err != nil {
-				log.Fatal(err)
-			}
-		*/
-		server := api.NewServer(":3000", db)
+		port := os.Getenv("PORT")
+		if port == "" {
+			port = "3000"
+		}
+		server := api.NewServer(":"+port, db)
 		server.Run()
 	}
 }

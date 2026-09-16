@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"log"
 	"net/http"
+	"os"
 
 	"github.com/SinghDani/audioRecognition/db"
 	"github.com/SinghDani/audioRecognition/fingerprint"
@@ -25,8 +26,12 @@ func NewServer(Addr string, Db *db.DBConnection) *Server {
 }
 
 func cors(next http.Handler) http.Handler {
+	allowedOrigin := os.Getenv("FRONTEND_ORIGIN")
+	if allowedOrigin == "" {
+		allowedOrigin = "http://localhost:5173"
+	}
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Add("Access-Control-Allow-Origin", "http://localhost:5173")
+		w.Header().Add("Access-Control-Allow-Origin", allowedOrigin)
 		next.ServeHTTP(w, r)
 	})
 }
@@ -58,6 +63,7 @@ func (s *Server) getMatchinSong(w http.ResponseWriter, r *http.Request) {
 	song, err := fingerprint.IdentifyRecording(s.Db, hashes)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
 	}
 
 	res := internal.Match{

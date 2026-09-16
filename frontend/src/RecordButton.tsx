@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
-import type { MatchingSong } from "./types";
+import type { MatchingSong, WorkerMessage } from "./types";
+import { FRAME_DURATION_MS, LOWPASS_CUTOFF_HZ } from "./recording-config";
 
 type RecordingState = "idle" | "recording" | "error";
 
@@ -14,17 +15,6 @@ type WorkletFlushCompleteMessage = {
 
 type WorkletMessage = WorkletPcmMessage | WorkletFlushCompleteMessage;
 
-type WorkerMatch = {
-  songName: string;
-  artist: string;
-  match: boolean;
-  verdict: string;
-};
-
-type WorkerMessage =
-  | { type: "result"; result: WorkerMatch }
-  | { type: "error"; message: string };
-
 type AudioRuntime = {
   audioContext: AudioContext;
   sourceNode: MediaStreamAudioSourceNode;
@@ -34,15 +24,10 @@ type AudioRuntime = {
   muteGain: GainNode;
   worker: Worker;
   sourceSampleRate: number;
+  targetSampleRate: number;
+  frameSamples: number;
   flushResolver: (() => void) | null;
 };
-
-const TARGET_SAMPLE_RATE = 11025;
-const LOWPASS_CUTOFF_HZ = 5000;
-const FRAME_DURATION_MS = 200;
-const FRAME_SAMPLES = Math.round(
-  (TARGET_SAMPLE_RATE * FRAME_DURATION_MS) / 1000,
-);
 
 function getAudioContextConstructor(): typeof AudioContext {
   const maybeWindow = window as Window & {
@@ -75,6 +60,8 @@ export default function RecordButton(props: Props) {
   const runtimeRef = useRef<AudioRuntime | null>(null);
   const processedSampleCountRef = useRef(0);
   const stopRequestedRef = useRef(false);
+  const sessionRef = useRef<object | null>(null);
+  const cancelWorkerSetupRef = useRef<(() => void) | null>(null);
 
   function stopTracks() {
     const stream = streamRef.current;
@@ -133,6 +120,8 @@ export default function RecordButton(props: Props) {
       return;
     }
     stopRequestedRef.current = true;
+    sessionRef.current = null;
+    cancelWorkerSetupRef.current?.();
 
     try {
       const runtime = runtimeRef.current;
@@ -146,12 +135,12 @@ export default function RecordButton(props: Props) {
       stopTracks();
 
       const sampleCount = processedSampleCountRef.current;
-      const durationSeconds = sampleCount / TARGET_SAMPLE_RATE;
+      const durationSeconds = runtime ? sampleCount / runtime.targetSampleRate : 0;
 
       console.log("processed-audio", {
         sourceSampleRate,
-        targetSampleRate: TARGET_SAMPLE_RATE,
-        frameSamples: FRAME_SAMPLES,
+        targetSampleRate: runtime?.targetSampleRate,
+        frameSamples: runtime?.frameSamples,
         sampleCount,
         byteLength: sampleCount * 2,
         durationSeconds: Number(durationSeconds.toFixed(3)),
@@ -168,16 +157,19 @@ export default function RecordButton(props: Props) {
   }
 
   async function startRecording() {
-    if (state === "recording" || runtimeRef.current) {
+    if (state === "recording" || runtimeRef.current || sessionRef.current || stopRequestedRef.current) {
       return;
     }
     stopRequestedRef.current = false;
+    const session = {};
+    sessionRef.current = session;
     setMatch({ name: "", artist: "", confidence: "" });
     setErrorMessage("");
     setState("recording");
 
     let localAudioContext: AudioContext | null = null;
     let localWorker: Worker | null = null;
+    let localStream: MediaStream | null = null;
 
     try {
       if (!navigator.mediaDevices?.getUserMedia) {
@@ -192,14 +184,58 @@ export default function RecordButton(props: Props) {
           autoGainControl: false,
         },
       });
+      localStream = stream;
+      if (sessionRef.current !== session) return;
       streamRef.current = stream;
 
       const AudioContextCtor = getAudioContextConstructor();
       const audioContext = new AudioContextCtor();
       localAudioContext = audioContext;
       await audioContext.resume();
+      if (sessionRef.current !== session) return;
 
       await audioContext.audioWorklet.addModule("/audio-resample-worklet.js");
+      if (sessionRef.current !== session) return;
+
+      const worker = new Worker(
+        new URL("./fingerprint-worker.ts", import.meta.url),
+        { type: "module" },
+      );
+      localWorker = worker;
+      const sampleRate = await new Promise<number | null>((resolve, reject) => {
+        const finish = () => {
+          cancelWorkerSetupRef.current = null;
+          worker.onmessage = null;
+          worker.onerror = null;
+          worker.onmessageerror = null;
+        };
+        cancelWorkerSetupRef.current = () => {
+          finish();
+          worker.terminate();
+          resolve(null);
+        };
+        worker.onmessage = (event: MessageEvent<WorkerMessage>) => {
+          const message = event.data;
+          if (message.type === "ready") {
+            finish();
+            resolve(message.sampleRate);
+          } else if (message.type === "error") {
+            finish();
+            reject(new Error(message.message));
+          }
+        };
+        worker.onerror = (event) => {
+          event.preventDefault();
+          finish();
+          reject(new Error(event.message || "Could not start the fingerprint worker."));
+        };
+        worker.onmessageerror = () => {
+          finish();
+          reject(new Error("Could not read the fingerprint worker configuration."));
+        };
+      });
+      if (sessionRef.current !== session || sampleRate === null) return;
+      const frameSamples = Math.round(sampleRate * FRAME_DURATION_MS / 1000);
 
       const sourceNode = audioContext.createMediaStreamSource(stream);
 
@@ -221,19 +257,14 @@ export default function RecordButton(props: Props) {
           numberOfOutputs: 1,
           outputChannelCount: [1],
           processorOptions: {
-            targetSampleRate: TARGET_SAMPLE_RATE,
-            frameSamples: FRAME_SAMPLES,
+            targetSampleRate: sampleRate,
+            frameSamples,
           },
         },
       );
 
       const muteGain = audioContext.createGain();
       muteGain.gain.value = 0;
-
-      const worker = new Worker(
-        new URL("./fingerprint-worker.ts", import.meta.url),
-      );
-      localWorker = worker;
 
       const runtime: AudioRuntime = {
         audioContext,
@@ -244,6 +275,8 @@ export default function RecordButton(props: Props) {
         muteGain,
         worker,
         sourceSampleRate: audioContext.sampleRate,
+        targetSampleRate: sampleRate,
+        frameSamples,
         flushResolver: null,
       };
 
@@ -251,13 +284,16 @@ export default function RecordButton(props: Props) {
       processedSampleCountRef.current = 0;
 
       const handleWorkerError = (message: string) => {
+        if (sessionRef.current !== session) return;
         console.error(message);
         setErrorMessage(message);
         void stopRecording("error");
       };
 
       worker.onmessage = (event: MessageEvent<WorkerMessage>) => {
+        if (sessionRef.current !== session) return;
         const message = event.data;
+        if (message.type === "ready") return;
         if (message.type === "error") {
           handleWorkerError(message.message);
           return;
@@ -269,7 +305,7 @@ export default function RecordButton(props: Props) {
           artist: result.artist,
           confidence: result.verdict,
         });
-        console.log("winner-detected", { song: result.songName });
+        console.log("recognition-result", { song: result.songName, match: result.match });
         void stopRecording();
       };
 
@@ -312,28 +348,34 @@ export default function RecordButton(props: Props) {
 
       console.log("dsp-started", {
         sourceSampleRate: audioContext.sampleRate,
-        targetSampleRate: TARGET_SAMPLE_RATE,
+        targetSampleRate: sampleRate,
         lowpassHz: LOWPASS_CUTOFF_HZ,
-        frameSamples: FRAME_SAMPLES,
+        frameSamples,
       });
 
       setState("recording");
     } catch (error) {
+      if (sessionRef.current !== session) return;
       console.error(error);
-      localWorker?.terminate();
-      if (localAudioContext && localAudioContext.state !== "closed") {
-        await localAudioContext.close();
-      }
-      await stopAudioRuntime();
-      stopTracks();
       setErrorMessage(getErrorMessage(error));
-      setState("error");
-      stopRequestedRef.current = false;
+      await stopRecording("error");
+    } finally {
+      // A cancelled setup only releases its own resources, never a newer session's.
+      if (sessionRef.current !== session) {
+        localWorker?.terminate();
+        localStream?.getTracks().forEach((track) => track.stop());
+        if (streamRef.current === localStream) streamRef.current = null;
+        if (localAudioContext && localAudioContext.state !== "closed") {
+          await localAudioContext.close().catch(console.error);
+        }
+      }
     }
   }
 
   useEffect(() => {
     return () => {
+      sessionRef.current = null;
+      cancelWorkerSetupRef.current?.();
       void stopAudioRuntime();
       stopTracks();
     };

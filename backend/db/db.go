@@ -87,6 +87,7 @@ func (db *DBConnection) StoreHashes(hashes []internal.GeneratedHash, song string
 		return errors.New("no hashes to store")
 	}
 
+	//Todo: Document the required "Song Name - Artist.wav" filename format in the README
 	r := regexp.MustCompile(`^(.+) - (.+)\.wav$`)
 	songInfo := r.FindStringSubmatch(song)
 	if songInfo == nil {

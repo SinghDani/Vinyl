@@ -12,16 +12,13 @@ import (
 
 	"github.com/SinghDani/audioRecognition/db"
 	"github.com/SinghDani/audioRecognition/internal"
+	"github.com/SinghDani/audioRecognition/internal/audioconfig"
 	"github.com/SinghDani/audioRecognition/wav"
 )
 
-// Todo make sure windowSize is not used anywhere!!!
 const (
 	PI           = math.Pi
-	SamplingRate = 11025
-	windowSize   = 1024
-	hopFactor    = 2
-	hopSize      = windowSize / hopFactor //how much to slide each window by
+	SamplingRate = audioconfig.SampleRate
 )
 
 func ExtractHashesFromFile(file string, timeOffset int) ([]internal.GeneratedHash, error) {
@@ -34,7 +31,7 @@ func ExtractHashesFromFile(file string, timeOffset int) ([]internal.GeneratedHas
 }
 
 func SamplesToHashes(samples []float64, timeOffset int) ([]internal.GeneratedHash, error) {
-	spectogram := generateSpectogram(samples, windowSize, hopSize)
+	spectogram := generateSpectogram(samples, audioconfig.WindowSize, audioconfig.HopSize)
 	/*
 		err := spectogramImage(spectogram)
 		if err != nil {
@@ -42,8 +39,7 @@ func SamplesToHashes(samples []float64, timeOffset int) ([]internal.GeneratedHas
 		}
 	*/
 
-	//TODO don't hard code the window and threshold
-	peaks := extractPeaks(spectogram, 9, 9, getMeanArr(spectogram)) //maybe multiply mean by some factor like 1.5
+	peaks := extractPeaks(spectogram, audioconfig.PeakFrequencyBins, audioconfig.PeakTimeWindows, getMeanArr(spectogram))
 
 	/*
 		err = displayPeaks(peaks)
@@ -52,8 +48,10 @@ func SamplesToHashes(samples []float64, timeOffset int) ([]internal.GeneratedHas
 		}
 	*/
 
-	//TODO change the thresholds and targetzone bounds
-	hashes := generateHashes(peaks, 0.05, 2, 100, 100, 5, timeOffset) //maybe max out frequencies
+	hashes := generateHashes(peaks,
+		audioconfig.TargetStartSeconds, audioconfig.TargetEndSeconds,
+		audioconfig.TargetFrequencyBinsAbove, audioconfig.TargetFrequencyBinsBelow,
+		audioconfig.PairsPerAnchor, timeOffset)
 	return hashes, nil
 }
 
@@ -78,7 +76,7 @@ func SecondsToWindows(seconds float64) int {
 	if seconds == 0 {
 		return 0
 	}
-	secondsPerHop := float64(hopSize) / SamplingRate
+	secondsPerHop := float64(audioconfig.HopSize) / SamplingRate
 	//fmt.Println("Seconds per Hop: ", secondsPerHop)
 	return int(math.Ceil(seconds / secondsPerHop))
 }

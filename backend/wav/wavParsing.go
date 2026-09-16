@@ -6,6 +6,9 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strconv"
+
+	"github.com/SinghDani/audioRecognition/internal/audioconfig"
 )
 
 type WavHeader struct {
@@ -45,7 +48,7 @@ func WavToSamples(file string) (*WAV, error) {
 		"-y",
 		"-i", file,
 		"-ac", "1",
-		"-ar", "11025",
+		"-ar", strconv.Itoa(audioconfig.SampleRate),
 		"-c:a", "pcm_s16le",
 		outPath,
 	)

@@ -4,8 +4,12 @@ class DownsamplePcm16Processor extends AudioWorkletProcessor {
 
     const processorOptions = options?.processorOptions ?? {};
 
-    this.targetSampleRate = Number(processorOptions.targetSampleRate) || 11025;
-    this.frameSamples = Number(processorOptions.frameSamples) || 2205;
+    this.targetSampleRate = Number(processorOptions.targetSampleRate);
+    this.frameSamples = Number(processorOptions.frameSamples);
+    if (!Number.isFinite(this.targetSampleRate) || this.targetSampleRate <= 0 ||
+        !Number.isInteger(this.frameSamples) || this.frameSamples <= 0) {
+      throw new Error("A valid target sample rate and frame size are required.");
+    }
 
 
     this.ratio = sampleRate / this.targetSampleRate;
