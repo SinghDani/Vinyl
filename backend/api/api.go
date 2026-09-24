@@ -44,9 +44,9 @@ func (s *Server) Run() {
 }
 
 func (s *Server) registerRoutes(mux *http.ServeMux) {
-	mux.HandleFunc("GET /songs", s.getSongs)
+	mux.HandleFunc("GET /api/songs", s.getSongs)
 	//mux.HandleFunc("/recording", s.acceptRecording)
-	mux.HandleFunc("POST /song", s.getMatchinSong)
+	mux.HandleFunc("POST /api/song", s.getMatchinSong)
 }
 
 func (s *Server) getMatchinSong(w http.ResponseWriter, r *http.Request) {
