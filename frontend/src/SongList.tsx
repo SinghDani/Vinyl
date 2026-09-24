@@ -33,7 +33,7 @@ export default function SongList() {
         <thead>
           <tr>
             <th>#</th>
-            <th>Song</th>
+            <th>Supported Songs</th>
           </tr>
         </thead>
         <tbody>

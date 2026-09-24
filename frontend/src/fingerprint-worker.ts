@@ -54,7 +54,6 @@ function sendError(message: string) {
 onmessage = (e) => {
   if (foundSong) return
   if (chunkIndex * totalBatchTime >= totalTime) {
-    //send could not find song message
     return
   }
 
