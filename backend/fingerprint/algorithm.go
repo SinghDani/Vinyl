@@ -1,6 +1,7 @@
 package fingerprint
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"image"
@@ -52,22 +53,19 @@ func SamplesToHashes(samples []float64, timeOffset int) ([]internal.GeneratedHas
 		audioconfig.TargetStartSeconds, audioconfig.TargetEndSeconds,
 		audioconfig.TargetFrequencyBinsAbove, audioconfig.TargetFrequencyBinsBelow,
 		audioconfig.PairsPerAnchor, timeOffset)
+	fmt.Println("hashes amount:", len(hashes))
 	return hashes, nil
 }
 
 // will compare recordings hashes to the ones in the db to find the matching song
-func IdentifyRecording(db *db.DBConnection, genHashes []internal.GeneratedHash) (internal.MatchingSong, error) {
-	hashValues := make([]uint32, len(genHashes))
-	for i, hash := range genHashes {
-		hashValues[i] = hash.Hash
-	}
-	fingerPrints, err := db.ExtractHashes(hashValues)
+func IdentifyRecording(ctx context.Context, db *db.DBConnection, genHashes []internal.GeneratedHash) (internal.MatchingSong, error) {
+	fingerPrints, err := db.ExtractHashes(ctx, genHashes)
 	if err != nil {
 		return internal.MatchingSong{}, err
 	}
 	//fmt.Printf("Fingerprints: %+v\n", fingerPrints)
 	//fmt.Println("\nsong comparison:")
-	return findMatchingSong(fingerPrints, genHashes, db)
+	return findMatchingSong(ctx, fingerPrints, genHashes, db)
 }
 
 // takes a seconds amount and computes how many windows will be needed when considering the hop size
@@ -333,7 +331,7 @@ func generateHashes(peaks [][]bool, secondsOffset float64, secondsThreshold floa
 // identifies the best matching song by building a time-delta histogram between recording hashes
 // and db fingerprints for every song that was matched
 // returning the top matching song with a confidence ratio
-func findMatchingSong(fingerPrints []internal.Fingerprint, recordingHashes []internal.GeneratedHash, db *db.DBConnection) (internal.MatchingSong, error) {
+func findMatchingSong(ctx context.Context, fingerPrints []internal.Fingerprint, recordingHashes []internal.GeneratedHash, db *db.DBConnection) (internal.MatchingSong, error) {
 	type deltaKey struct {
 		song_id uint32
 		dt      int64
@@ -446,7 +444,7 @@ func findMatchingSong(fingerPrints []internal.Fingerprint, recordingHashes []int
 	} else {
 		confidence = float64(topScore) / float64(secondScore)
 	}
-	songEntry, err := db.GetSong(topSong)
+	songEntry, err := db.GetSong(ctx, topSong)
 	if err != nil {
 		return internal.MatchingSong{}, err
 	}

@@ -1,6 +1,7 @@
 package audio
 
 import (
+	"context"
 	"fmt"
 	"os"
 	"os/exec"
@@ -11,7 +12,7 @@ import (
 	"github.com/SinghDani/audioRecognition/internal"
 )
 
-func RecordAudio(db *db.DBConnection) error {
+func RecordAudio(ctx context.Context, db *db.DBConnection) error {
 	file := "recording.wav"
 	recordingBatchTime := 5 //records in batches of 5 sec
 	var masterHashList [][]internal.GeneratedHash
@@ -52,7 +53,7 @@ func RecordAudio(db *db.DBConnection) error {
 			hashBatch = append(hashBatch, batch...)
 		}
 
-		matchingSong, err = fingerprint.IdentifyRecording(db, hashBatch)
+		matchingSong, err = fingerprint.IdentifyRecording(ctx, db, hashBatch)
 		if err != nil {
 			return err
 		}

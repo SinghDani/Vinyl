@@ -9,13 +9,11 @@ import (
 	"github.com/SinghDani/audioRecognition/db"
 	"github.com/SinghDani/audioRecognition/fingerprint"
 	"github.com/SinghDani/audioRecognition/internal"
-	"github.com/gorilla/websocket"
 )
 
 type Server struct {
-	Addr       string
-	Db         *db.DBConnection
-	WsUpgrader websocket.Upgrader
+	Addr string
+	Db   *db.DBConnection
 }
 
 func NewServer(Addr string, Db *db.DBConnection) *Server {
@@ -60,7 +58,7 @@ func (s *Server) getMatchinSong(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	song, err := fingerprint.IdentifyRecording(s.Db, hashes)
+	song, err := fingerprint.IdentifyRecording(r.Context(), s.Db, hashes)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
@@ -80,7 +78,7 @@ func (s *Server) getMatchinSong(w http.ResponseWriter, r *http.Request) {
 func (s *Server) getSongs(w http.ResponseWriter, r *http.Request) {
 	defer r.Body.Close()
 
-	songs, err := s.Db.GetAllSongs()
+	songs, err := s.Db.GetAllSongs(r.Context())
 	if err != nil {
 		http.Error(w, "db access failed", http.StatusInternalServerError)
 		return

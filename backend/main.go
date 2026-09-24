@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"log"
 	"os"
 	"path/filepath"
@@ -37,7 +38,7 @@ func main() {
 			log.Fatal(err)
 		}
 
-		if err := db.StoreHashes(genHashes, filepath.Base(file)); err != nil {
+		if err := db.StoreHashes(context.Background(), genHashes, filepath.Base(file)); err != nil {
 			log.Fatal(err)
 		}
 	} else if action == "record" {
