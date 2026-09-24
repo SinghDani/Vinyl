@@ -8,7 +8,7 @@ import (
 	"path/filepath"
 	"strconv"
 
-	"github.com/SinghDani/audioRecognition/internal/audioconfig"
+	"github.com/SinghDani/vinyl/internal/audioconfig"
 )
 
 type WavHeader struct {

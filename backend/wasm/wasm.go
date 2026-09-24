@@ -7,10 +7,10 @@ import (
 	"fmt"
 	"syscall/js"
 
-	"github.com/SinghDani/audioRecognition/fingerprint"
-	"github.com/SinghDani/audioRecognition/internal"
-	"github.com/SinghDani/audioRecognition/internal/audioconfig"
-	"github.com/SinghDani/audioRecognition/wav"
+	"github.com/SinghDani/vinyl/fingerprint"
+	"github.com/SinghDani/vinyl/internal"
+	"github.com/SinghDani/vinyl/internal/audioconfig"
+	"github.com/SinghDani/vinyl/wav"
 )
 
 func main() {

@@ -11,10 +11,10 @@ import (
 	"math"
 	"os"
 
-	"github.com/SinghDani/audioRecognition/db"
-	"github.com/SinghDani/audioRecognition/internal"
-	"github.com/SinghDani/audioRecognition/internal/audioconfig"
-	"github.com/SinghDani/audioRecognition/wav"
+	"github.com/SinghDani/vinyl/db"
+	"github.com/SinghDani/vinyl/internal"
+	"github.com/SinghDani/vinyl/internal/audioconfig"
+	"github.com/SinghDani/vinyl/wav"
 )
 
 const (

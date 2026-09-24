@@ -6,9 +6,9 @@ import (
 	"net/http"
 	"os"
 
-	"github.com/SinghDani/audioRecognition/db"
-	"github.com/SinghDani/audioRecognition/fingerprint"
-	"github.com/SinghDani/audioRecognition/internal"
+	"github.com/SinghDani/vinyl/db"
+	"github.com/SinghDani/vinyl/fingerprint"
+	"github.com/SinghDani/vinyl/internal"
 )
 
 type Server struct {

@@ -7,9 +7,9 @@ import (
 	"os/exec"
 	"strconv"
 
-	"github.com/SinghDani/audioRecognition/db"
-	"github.com/SinghDani/audioRecognition/fingerprint"
-	"github.com/SinghDani/audioRecognition/internal"
+	"github.com/SinghDani/vinyl/db"
+	"github.com/SinghDani/vinyl/fingerprint"
+	"github.com/SinghDani/vinyl/internal"
 )
 
 func RecordAudio(ctx context.Context, db *db.DBConnection) error {

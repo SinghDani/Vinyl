@@ -1,4 +1,4 @@
-module github.com/SinghDani/audioRecognition
+module github.com/SinghDani/vinyl
 
 go 1.24.1
 

@@ -6,9 +6,9 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/SinghDani/audioRecognition/api"
-	"github.com/SinghDani/audioRecognition/db"
-	"github.com/SinghDani/audioRecognition/fingerprint"
+	"github.com/SinghDani/vinyl/api"
+	"github.com/SinghDani/vinyl/db"
+	"github.com/SinghDani/vinyl/fingerprint"
 	"github.com/joho/godotenv"
 )
 

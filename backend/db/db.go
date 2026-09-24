@@ -7,7 +7,7 @@ import (
 	"os"
 	"regexp"
 
-	"github.com/SinghDani/audioRecognition/internal"
+	"github.com/SinghDani/vinyl/internal"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 )
