@@ -7,6 +7,11 @@ songs stored in a PostgreSQL database.
 The project has a Go backend and a React frontend. The browser runs the Go
 fingerprinting code through WebAssembly.
 
+## Live demo
+
+Try [Vinyl](https://vinyl-three-rose.vercel.app/).
+Allow microphone access, then play a song from the supported songs list.
+
 ## Requirements
 
 - [Go](https://go.dev/) 1.24.1 or later
